@@ -2,17 +2,21 @@ package com.badpx.indexbitmap.sample;
 
 import android.app.Activity;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.ImageView;
 
 import com.badpx.indexbitmap.IndexBitmapFactory;
+import com.badpx.indexbitmap.PaletteHelper;
 
 import java.util.Arrays;
 
 
 public class TestActivity extends Activity {
+
+    public static final String TAG = "IndexBitmap";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,17 +30,28 @@ public class TestActivity extends Activity {
         super.onResume();
 
         byte[] pixels = new byte[100 * 100];
-        Arrays.fill(pixels, (byte)1);
-        int[] colorTable = new int[256];
-        for (int i = 0; i < 256; ++i) {
-            colorTable[i] = Color.argb(128, 128, 0, 0);
+        for (int i = 0; i < pixels.length; ++i) {
+            pixels[i] = (byte) (i % 256);
         }
-        Bitmap bmp = IndexBitmapFactory.createBitmap(pixels, colorTable, 100, 100);
+        int[] colorTable = PaletteHelper.getARGB1232Palette();
+        Bitmap bmp = IndexBitmapFactory.createBitmap(pixels, colorTable, 0, 0, 100, 100, true);
+        bmp.setDensity(60);
 
-        Log.d("IndexBitmap", String.format("result bmp w = %d, h = %d, rowBytes = %d, Config = %s",
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inBitmap = bmp;
+        options.inSampleSize = 1;
+        Bitmap coffee = null;
+//        try {
+//            coffee = BitmapFactory.decodeResource(getResources(), R.drawable.coffee, options);
+//            Log.d(TAG, String.format("inBitmap reused %s", coffee == bmp ? "success" : "failed"));
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+
+        Log.d(TAG, String.format("result bmp w = %d, h = %d, rowBytes = %d, Config = %s",
                 bmp.getWidth(), bmp.getHeight(), bmp.getRowBytes(), bmp.getConfig()));
         ImageView imageView = (ImageView) findViewById(R.id.imageview);
-        imageView.setImageBitmap(bmp);
+        imageView.setImageBitmap(null != coffee ? coffee : bmp);
     }
 
 }
