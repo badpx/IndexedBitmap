@@ -48,11 +48,22 @@ public class IndexBitmapFactory {
         return createBitmap(pixels, colorTable, 0, 0, width, height);
     }
 
-    public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride, int width, int height) {
-        Parcel parcel = createIndexBitmapParcel(pixels, colorTable, offset, stride, width, height, false);
-        Bitmap bmp = Bitmap.CREATOR.createFromParcel(parcel);
-        parcel.recycle();
-        return bmp;
+    public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride,
+                                      int width, int height) {
+        return createBitmap(pixels, colorTable, offset, stride, width, height, false);
+    }
+
+    public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride,
+                                      int width, int height, boolean mutable) {
+        Parcel parcel = createIndexBitmapParcel(pixels, colorTable, offset, stride, width, height, mutable);
+        try {
+            Bitmap bitmap = Bitmap.CREATOR.createFromParcel(parcel);
+            parcel.recycle();
+            return bitmap;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private static Parcel createIndexBitmapParcel(byte[] pixels, int[] colorTable, int offset, int stride, int width, int height, boolean mutable) {
