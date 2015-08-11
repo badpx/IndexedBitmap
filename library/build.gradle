@@ -21,6 +21,12 @@ android {
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"
+
+        ndk {
+            moduleName "skbitmap_helper"
+            ldLibs "log", "jnigraphics"
+            abiFilters "armeabi", "armeabi-v7a", "x86"
+        }
     }
 
     compileOptions {

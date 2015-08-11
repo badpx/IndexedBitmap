@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.ImageView;
 
+import com.badpx.indexbitmap.BitmapHelper;
 import com.badpx.indexbitmap.IndexBitmapFactory;
 import com.badpx.indexbitmap.PaletteHelper;
 
@@ -52,6 +53,7 @@ public class TestActivity extends Activity {
                 bmp.getWidth(), bmp.getHeight(), bmp.getRowBytes(), bmp.getConfig()));
         ImageView imageView = (ImageView) findViewById(R.id.imageview);
         imageView.setImageBitmap(null != coffee ? coffee : bmp);
+        Log.d(TAG, String.format("bpp of bmp = %d", BitmapHelper.getBytesPerPixel(bmp)));
     }
 
 }

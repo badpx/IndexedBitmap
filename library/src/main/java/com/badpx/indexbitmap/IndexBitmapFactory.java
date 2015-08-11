@@ -73,7 +73,7 @@ public class IndexBitmapFactory {
         parcel.writeInt(mutable ? 1 : 0); // mutable
         if (Build.VERSION.SDK_INT > 20) { // For Android 5.0 and above
             parcel.writeInt(6); // SkColorType
-            parcel.writeInt(1); // SkAlphaType
+            parcel.writeInt(2); // kPremul_SkAlphaType
             inPlaceFlagBase = IN_PLACE_FLAG_BASE_ABOVE_KITKAT;
         } else {
             parcel.writeInt(NATIVE_INDEX_CONFIG); // SkBitmap::Config
