@@ -1,4 +1,10 @@
-buildscript {
+apply plugin: 'com.android.library'
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'com.jfrog.bintray'
+
+version = "1.0.0"
+
+/*buildscript {
     repositories {
         jcenter()
     }
@@ -6,21 +12,21 @@ buildscript {
         classpath 'com.android.tools.build:gradle:1.1.1'
     }
 }
-apply plugin: 'com.android.library'
 
 repositories {
     jcenter()
-}
+}*/
 
 android {
-    compileSdkVersion 22
+    compileSdkVersion 21
     buildToolsVersion "22.0.1"
+    resourcePrefix "indexbitmap__"
 
     defaultConfig {
         minSdkVersion 9
-        targetSdkVersion 22
+        targetSdkVersion 21
         versionCode 1
-        versionName "1.0"
+        versionName version
 
         ndk {
             moduleName "skbitmap_helper"
@@ -33,6 +39,7 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_6
         targetCompatibility JavaVersion.VERSION_1_6
     }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -44,4 +51,71 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:appcompat-v7:22.2.1'
+}
+
+def siteUrl = 'https://github.com/badpx/IndexBitmap'      // Project homepage
+def gitUrl = 'https://github.com/badpx/IndexBitmap.git'   // Git Repo URL
+group = "com.badpx.indexbitmap"                           // Maven Group ID for the artifact
+install {
+    repositories.mavenInstaller {
+        // This generates POM.xml with proper parameters
+        pom {
+            project {
+                packaging 'aar'
+                // Add your description here
+                name 'Android Index Bitmap Support Library' 	// Project Summary
+                url siteUrl
+                // Set your license
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id 'badpx'
+                        name 'kanedong'
+                        email 'badpxx@gmail.com'
+                    }
+                }
+                scm {
+                    connection gitUrl
+                    developerConnection gitUrl
+                    url siteUrl
+                }
+            }
+        }
+    }
+}
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+task javadoc(type: Javadoc) {
+    source = android.sourceSets.main.java.srcDirs
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+}
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+artifacts {
+    archives javadocJar
+    archives sourcesJar
+}
+Properties properties = new Properties()
+properties.load(project.rootProject.file('local.properties').newDataInputStream())
+bintray {
+    user = properties.getProperty("bintray.user")
+    key = properties.getProperty("bintray.apikey")
+    configurations = ['archives']
+    pkg {
+        repo = "maven"
+        name = "IndexBitmap"	// Project name to publish to JCenter
+        websiteUrl = siteUrl
+        vcsUrl = gitUrl
+        licenses = ["Apache-2.0"]
+        publish = true
+    }
 }

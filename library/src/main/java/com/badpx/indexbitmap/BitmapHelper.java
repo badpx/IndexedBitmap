@@ -30,13 +30,22 @@ public class BitmapHelper {
         return -127;
     }
 
-    public static int locateGetColorTable(Bitmap bitmap, int[] output) {
+    /**
+     * Get color table of the bitmap.
+     * @param bitmap A indexed bitmap.
+     * @param output The array to receive the bitmap's color table. */
+    public static int getColorTable(Bitmap bitmap, int[] output) {
         if (IS_COLOR_TABLE_LOCATED) {
             return nativeGetColorTable(bitmap, output);
         }
         return -127;
     }
 
+    /**
+     * Change color table of the bitmap.
+     * @param bitmap A indexed bitmap.
+     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
+     *                   where the bitmap bytes are interpreted as indices into the colorTable.*/
     public static int changeColorTable(Bitmap bitmap, int[] colorTable) {
         if (IS_COLOR_TABLE_LOCATED) {
             return nativeChangeColorTable(bitmap, colorTable);

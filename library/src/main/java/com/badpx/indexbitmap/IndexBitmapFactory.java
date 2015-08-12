@@ -44,15 +44,44 @@ public class IndexBitmapFactory {
         return nativeConfig;
     }
 
+    /**
+     * Create a 8-bits immutable indexed bitmap.
+     * @param pixels Array of Color Index used to initialize the pixels.
+     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
+     *                   where the bitmap bytes are interpreted as indices into the colorTable.
+     * @param width The width of the bitmap.
+     * @param height The height of the bitmap.
+     */
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int width, int height) {
         return createBitmap(pixels, colorTable, 0, 0, width, height);
     }
 
+    /**
+     * Create a 8-bits immutable indexed bitmap.
+     * @param pixels Array of Color Index used to initialize the pixels.
+     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
+     *                   where the bitmap bytes are interpreted as indices into the colorTable.
+     * @param offset Number of values to skip before the first pixel in the array of pixels.
+     * @param stride Number of pixels in the array between rows (must be >= width).
+     * @param width The width of the bitmap.
+     * @param height The height of the bitmap.
+     */
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride,
                                       int width, int height) {
         return createBitmap(pixels, colorTable, offset, stride, width, height, false);
     }
 
+    /**
+     * Create a 8-bits indexed bitmap.
+     * @param pixels Array of Color Index used to initialize the pixels.
+     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
+     *                   where the bitmap bytes are interpreted as indices into the colorTable.
+     * @param offset Number of values to skip before the first pixel in the array of pixels.
+     * @param stride Number of pixels in the array between rows (must be >= width).
+     * @param width The width of the bitmap.
+     * @param height The height of the bitmap.
+     * @param mutable True if the resulting bitmap should be mutable (i.e. its pixels can be modified)
+     */
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride,
                                       int width, int height, boolean mutable) {
         Parcel parcel = createIndexBitmapParcel(pixels, colorTable, offset, stride, width, height, mutable);
