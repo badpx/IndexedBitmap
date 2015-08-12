@@ -26,5 +26,5 @@ public class BitmapHelper {
     public static native int getBytesPerPixel(Bitmap bitmap);
     private static native int locateColorTable(Bitmap bitmap, int[] palette);
     public static native int getColorTable(Bitmap bitmap, int[] output);
-    private static native int changeColorTable(Bitmap bitmap, int[] palette);
+    public static native int changeColorTable(Bitmap bitmap, int[] palette);
 }

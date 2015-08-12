@@ -18,7 +18,8 @@ int getApiLevel(JNIEnv* env);
 int computeBytesPerPixel(uint32_t config);
 int locateColorTable(JNIEnv* env, jobject javaBitmap, jintArray colorTable = NULL);
 ColorTable* getColorTable(JNIEnv* env, jobject javaBitmap);
-int locateBitmapInfoFieldsBaseBelowAPI21(void* bitmap, const AndroidBitmapInfo& bmpInfo);
+int locateBitmapInfoFieldsBaseBelowAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
+int locateBitmapInfoFieldsBaseAboveAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
 int locateColorTableRelateInfoFieldsBase(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, int offset, jintArray palette);
 int locateColorTableBelowAPI18(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray colorTable);
 int locateColorTableBelowAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray colorTable);
@@ -79,7 +80,7 @@ jint JNICALL nativeGetColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintA
             if (count >= colorTable->fCount) {
                 int* array = env->GetIntArrayElements(output, NULL);
 
-                memset(array, 0, count);
+                memset(array, 0, count * sizeof(jint));
                 memcpy(array, colorTable->fColors, colorTable->fCount * sizeof(PMColor));
 
                 env->ReleaseIntArrayElements(output, array, 0);
@@ -202,12 +203,18 @@ int locateColorTableBelowAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInf
 }
 
 int locateColorTableAboveAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray palette) {
-    return -1;
+    return locateColorTableRelateInfoFieldsBase(env, bitmap, bmpInfo, -3, palette);
 }
 
 int locateColorTableRelateInfoFieldsBase(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, int offset, jintArray palette) {
     int result = 0;
-    int infoFieldsBase = locateBitmapInfoFieldsBaseBelowAPI21(bitmap, bmpInfo);
+    int infoFieldsBase = 0;
+    if (getApiLevel(env) < 21) {
+        infoFieldsBase = locateBitmapInfoFieldsBaseBelowAPI20(bitmap, bmpInfo);
+    } else {
+        infoFieldsBase = locateBitmapInfoFieldsBaseAboveAPI20(bitmap, bmpInfo);
+    }
+
     if (infoFieldsBase > 2) {
         uint32_t* ptr = (uint32_t*)bitmap;
         result = infoFieldsBase + offset;
@@ -217,7 +224,7 @@ int locateColorTableRelateInfoFieldsBase(JNIEnv* env, void* bitmap, const Androi
                 int count = env->GetArrayLength(palette);
                 int* array = env->GetIntArrayElements(palette, NULL);
                 LOGD("result = %d, colorTable count = %d, palette count = %d", result, colorTable->fCount, count);
-                if (colorTable->fCount == count && memcmp(array, colorTable->fColors, count) == 0) {
+                if (colorTable->fCount == count && memcmp(array, colorTable->fColors, count * sizeof(PMColor)) == 0) {
                     env->ReleaseIntArrayElements(palette, array, 0);
                     LOGD("Locate color table offset = %d", result);
                     return result;
@@ -234,13 +241,31 @@ int locateColorTableRelateInfoFieldsBase(JNIEnv* env, void* bitmap, const Androi
 }
 
 
-int locateBitmapInfoFieldsBaseBelowAPI21(void* bitmap, const AndroidBitmapInfo& bmpInfo) {
+int locateBitmapInfoFieldsBaseBelowAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo) {
     uint32_t* ptr = (uint32_t*)bitmap;
 
     if (NULL != ptr && 0 == gBmpInfoFieldsBase) {
         for (int i = 0; i < TRAVERSAL_TIMES; ++i) {
             // Assuming the rowBytes/width/height of SkBitmap are continuous in memory model
             if (ptr[i] == bmpInfo.stride && ptr[i + 1] == bmpInfo.width && ptr[i + 2] == bmpInfo.height) {
+                gBmpInfoFieldsBase = i;
+                LOGD("traversal for field offset success(offset=%d)", i);
+                return gBmpInfoFieldsBase;
+            }
+        }
+        gBmpInfoFieldsBase = -1;
+        LOGD("traversal for field offset failed!");
+    }
+    return gBmpInfoFieldsBase;
+}
+
+int locateBitmapInfoFieldsBaseAboveAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo) {
+    uint32_t* ptr = (uint32_t*)bitmap;
+
+    if (NULL != ptr && 0 == gBmpInfoFieldsBase) {
+        for (int i = 0; i < TRAVERSAL_TIMES; ++i) {
+            // Assuming the rowBytes/width/height of SkBitmap are continuous in memory model
+            if (ptr[i] == bmpInfo.width && ptr[i + 1] == bmpInfo.height && ptr[i + 4] == bmpInfo.stride) {
                 gBmpInfoFieldsBase = i;
                 LOGD("traversal for field offset success(offset=%d)", i);
                 return gBmpInfoFieldsBase;
