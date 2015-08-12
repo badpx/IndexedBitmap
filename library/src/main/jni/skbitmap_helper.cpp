@@ -5,7 +5,7 @@
 #include "skbitmap_helper.h"
 #include "color_table.h"
 
-#define TRAVERSAL_TIMES     (16)
+#define TRAVERSAL_TIMES     16
 
 jfieldID gBitmap_nativeBitmapFieldID;
 jfieldID gBitmap_widthFieldID;
@@ -16,14 +16,17 @@ static int gBmpInfoFieldsBase;
 
 int getApiLevel(JNIEnv* env);
 int computeBytesPerPixel(uint32_t config);
+
 int locateColorTable(JNIEnv* env, jobject javaBitmap, jintArray colorTable = NULL);
-ColorTable* getColorTable(JNIEnv* env, jobject javaBitmap);
-int locateBitmapInfoFieldsBaseBelowAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
-int locateBitmapInfoFieldsBaseAboveAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
 int locateColorTableRelateInfoFieldsBase(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, int offset, jintArray palette);
 int locateColorTableBelowAPI18(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray colorTable);
 int locateColorTableBelowAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray colorTable);
 int locateColorTableAboveAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray colorTable);
+
+ColorTable* getColorTable(JNIEnv* env, jobject javaBitmap);
+
+int locateBitmapInfoFieldsBaseBelowAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
+int locateBitmapInfoFieldsBaseAboveAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
 
 bool setupLibrary(JNIEnv* env) {
     static int sInitFlag;
@@ -59,7 +62,7 @@ bool setupLibrary(JNIEnv* env) {
     return true;
 }
 
-jint JNICALL nativeGetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
+jint JNICALL GetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
     if (NULL != javaBitmap) {
         AndroidBitmapInfo bmpInfo;
         AndroidBitmap_getInfo(env, javaBitmap, &bmpInfo);
@@ -68,11 +71,11 @@ jint JNICALL nativeGetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
     return 0;
 }
 
-jint JNICALL nativeLocateColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray colorTable) {
+jint JNICALL LocateColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray colorTable) {
     return locateColorTable(env, javaBitmap, colorTable);
 }
 
-jint JNICALL nativeGetColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray output) {
+jint JNICALL GetColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray output) {
     if (NULL != output) {
         ColorTable* colorTable = getColorTable(env, javaBitmap);
         if (NULL != colorTable) {
@@ -93,7 +96,7 @@ jint JNICALL nativeGetColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintA
     return -1;
 }
 
-jint JNICALL nativeChangeColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray palette) {
+jint JNICALL ChangeColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray palette) {
     if (NULL != palette) {
         ColorTable* colorTable = getColorTable(env, javaBitmap);
         if (NULL != colorTable) {

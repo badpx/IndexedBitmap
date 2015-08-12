@@ -6,10 +6,10 @@
 #define LOCAL_DEBUG 0
 
 static JNINativeMethod methods[] = {
-    { "getBytesPerPixel", "(Landroid/graphics/Bitmap;)I", (void*)nativeGetBytesPerPixel },
-    { "locateColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)nativeLocateColorTable },
-    { "getColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)nativeGetColorTable },
-    { "changeColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)nativeChangeColorTable },
+    { "nativeGetBytesPerPixel", "(Landroid/graphics/Bitmap;)I", (void*)GetBytesPerPixel },
+    { "nativeLocateColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)LocateColorTable },
+    { "nativeGetColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)GetColorTable },
+    { "nativeChangeColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)ChangeColorTable },
     /*{ "nativeXU_Init_Ctrl", "(I)I", (void*)nativeXU_Init_Ctrl },
     { "nativeXU_ASIC_Set_Data", "(IIB)I", (void*)nativeXU_ASIC_Set_Data },
     { "nativeXU_ASIC_Get_Data", "(II[B)I", (void*)nativeXU_ASIC_Get_Data },
