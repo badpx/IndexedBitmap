@@ -2,7 +2,7 @@
 
 **Android support library for use 8BPP Indexed Bitmap.**
 
-Indexed color is a technique to manage bitmap colors in a limited fashion, in order to save RAM and video memory buffer space, file storage space, telecom bandwidth. Instead of storing and managing every primary color component of every pixel, the most representative colors, are grouped into a limited size palette: an array of color elements, in which each element (a color) is indexed by its position. This way, the pixels contain not the full color components but merely their index into the palette.
+Indexed color is a technique to manage bitmap colors in a limited fashion, in order to save RAM and video memory buffer space, file storage space, telecom bandwidth. Instead of storing and managing every primary color component of every pixel, the most representative colors, are grouped into a limited size palette: an array of color elements, in which each element (a color) is indexed by its position. This way, the pixels contain not the full color components but merely their index into the palette.   
 This library can be used to create 8BPP(8-bits per pixel) indexed color bitmap, so it takes up storage space is a quarter of the same dimension 32-bit bitmap(like ARGB8888).
 
 ## Integration
@@ -10,7 +10,7 @@ You can either add the library to your application as a library project or add t
 
 ```
 dependencies {
-    compile 'com.badpx.indexbitmap:library:(1.0.0)'
+    compile 'com.badpx.indexbitmap:library:1.0.0
 }
 ```
 
