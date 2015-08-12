@@ -7,6 +7,9 @@
 
 static JNINativeMethod methods[] = {
     { "getBytesPerPixel", "(Landroid/graphics/Bitmap;)I", (void*)nativeGetBytesPerPixel },
+    { "locateColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)nativeLocateColorTable },
+    { "getColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)nativeGetColorTable },
+    { "changeColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)nativeChangeColorTable },
     /*{ "nativeXU_Init_Ctrl", "(I)I", (void*)nativeXU_Init_Ctrl },
     { "nativeXU_ASIC_Set_Data", "(IIB)I", (void*)nativeXU_ASIC_Set_Data },
     { "nativeXU_ASIC_Get_Data", "(II[B)I", (void*)nativeXU_ASIC_Get_Data },
@@ -48,6 +51,10 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK) {
         return JNI_ERR;
     }
+    if (!setupLibrary(env)) {
+        return JNI_ERR;
+    }
+
     // register native methods
     int result = register_native_methods(env);
 	setVM(vm);

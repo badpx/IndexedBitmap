@@ -30,13 +30,12 @@ public class TestActivity extends Activity {
     protected void onResume() {
         super.onResume();
 
-        byte[] pixels = new byte[100 * 100];
+        byte[] pixels = new byte[720 * 1280];
         for (int i = 0; i < pixels.length; ++i) {
             pixels[i] = (byte) (i % 256);
         }
-        int[] colorTable = PaletteHelper.getARGB1232Palette();
-        Bitmap bmp = IndexBitmapFactory.createBitmap(pixels, colorTable, 0, 0, 100, 100, true);
-        bmp.setDensity(60);
+        int[] colorTable = PaletteHelper.getRGB332Palette();
+        Bitmap bmp = IndexBitmapFactory.createBitmap(pixels, colorTable, 0, 0, 720, 1280, true);
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inBitmap = bmp;
@@ -53,7 +52,9 @@ public class TestActivity extends Activity {
                 bmp.getWidth(), bmp.getHeight(), bmp.getRowBytes(), bmp.getConfig()));
         ImageView imageView = (ImageView) findViewById(R.id.imageview);
         imageView.setImageBitmap(null != coffee ? coffee : bmp);
-        Log.d(TAG, String.format("bpp of bmp = %d", BitmapHelper.getBytesPerPixel(bmp)));
+        int[] palette = new int[256];
+        int ret = BitmapHelper.getColorTable(bmp, palette);
+        Log.d(TAG, "get palette ret = " + ret);
     }
 
 }
