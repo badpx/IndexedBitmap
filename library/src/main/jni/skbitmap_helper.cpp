@@ -103,7 +103,21 @@ jint JNICALL ChangeColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArra
             int count = env->GetArrayLength(palette);
             if (colorTable->fCount >= count) {
                 int* array = env->GetIntArrayElements(palette, NULL);
-                memcpy(colorTable->fColors, array, count * sizeof(PMColor));
+
+                for (int i = 0; i < count; ++i) {
+                    int color = array[i];
+                    int a = SkColorGetA(color);
+                    int r = SkColorGetR(color);
+                    int g = SkColorGetG(color);
+                    int b = SkColorGetB(color);
+
+                    float alphaFactor = a / 255.0f;
+                    colorTable->fColors[i] = PackABGR32(a, 
+                            int(b * alphaFactor), 
+                            int(g * alphaFactor),
+                            int(r * alphaFactor));
+                }
+
                 env->ReleaseIntArrayElements(palette, array, JNI_ABORT);
                 return count;
             } else {

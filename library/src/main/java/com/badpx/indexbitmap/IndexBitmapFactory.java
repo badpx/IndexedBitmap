@@ -1,6 +1,7 @@
 package com.badpx.indexbitmap;
 
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Parcel;
 import android.util.Log;
@@ -47,7 +48,7 @@ public class IndexBitmapFactory {
     /**
      * Create a 8-bits immutable indexed bitmap.
      * @param pixels Array of Color Index used to initialize the pixels.
-     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
+     * @param colorTable Array of Colors (non-premultiplied 32-bit ARGB colors) used by 8-bit bitmaps,
      *                   where the bitmap bytes are interpreted as indices into the colorTable.
      * @param width The width of the bitmap.
      * @param height The height of the bitmap.
@@ -59,7 +60,7 @@ public class IndexBitmapFactory {
     /**
      * Create a 8-bits immutable indexed bitmap.
      * @param pixels Array of Color Index used to initialize the pixels.
-     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
+     * @param colorTable Array of Colors (non-premultiplied 32-bit ARGB colors) used by 8-bit bitmaps,
      *                   where the bitmap bytes are interpreted as indices into the colorTable.
      * @param offset Number of values to skip before the first pixel in the array of pixels.
      * @param stride Number of pixels in the array between rows (must be >= width).
@@ -73,8 +74,8 @@ public class IndexBitmapFactory {
 
     /**
      * Create a 8-bits indexed bitmap.
-     * @param pixels Array of Color Index used to initialize the pixels.
-     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
+     * @param pixels Array of Color Index used to initialize the pixels.This array must be at least as large as width * height.
+     * @param colorTable Array of Colors (non-premultiplied 32-bit ARGB colors) used by 8-bit bitmaps,
      *                   where the bitmap bytes are interpreted as indices into the colorTable.
      * @param offset Number of values to skip before the first pixel in the array of pixels.
      * @param stride Number of pixels in the array between rows (must be >= width).
@@ -86,15 +87,26 @@ public class IndexBitmapFactory {
                                       int width, int height, boolean mutable) {
         Parcel parcel = createIndexBitmapParcel(pixels, colorTable, offset, stride, width, height, mutable);
         try {
-            Bitmap bitmap = Bitmap.CREATOR.createFromParcel(parcel);
-            parcel.recycle();
-            return bitmap;
+            return Bitmap.CREATOR.createFromParcel(parcel);
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            parcel.recycle();
         }
         return null;
     }
 
+    /**
+     * Create a 8-bits indexed bitmap.
+     * @param pixels Array of Color Index used to initialize the pixels.
+     * @param colorTable Array of Colors (non-premultiplied 32-bit ARGB colors) used by 8-bit bitmaps,
+     *                   where the bitmap bytes are interpreted as indices into the colorTable.
+     * @param offset Number of values to skip before the first pixel in the array of pixels.
+     * @param stride Number of pixels in the array between rows (must be >= width).
+     * @param width The width of the bitmap.
+     * @param height The height of the bitmap.
+     * @param mutable True if the resulting bitmap should be mutable (i.e. its pixels can be modified)
+     */
     private static Parcel createIndexBitmapParcel(byte[] pixels, int[] colorTable, int offset, int stride, int width, int height, boolean mutable) {
         int inPlaceFlagBase = IN_PLACE_FLAG_BASE;
         Parcel parcel = Parcel.obtain();
@@ -105,7 +117,7 @@ public class IndexBitmapFactory {
             parcel.writeInt(2); // kPremul_SkAlphaType
             inPlaceFlagBase = IN_PLACE_FLAG_BASE_ABOVE_KITKAT;
         } else {
-            parcel.writeInt(NATIVE_INDEX_CONFIG); // SkBitmap::Config
+            parcel.writeInt(NATIVE_INDEX_CONFIG); // Value of SkBitmap::Config::kIndex8_Config
         }
         parcel.writeInt(width);    // width
         parcel.writeInt(height);   // height
@@ -115,7 +127,24 @@ public class IndexBitmapFactory {
         int colorCount = 0;
         if (null != colorTable) {
             colorCount = colorTable.length;
-            parcel.writeIntArray(colorTable);
+            parcel.writeInt(colorCount);
+            for (int i = 0; i < colorCount; ++i) {
+                int color = colorTable[i];
+                int a = Color.alpha(color);
+                int r = Color.red(color);
+                int g = Color.green(color);
+                int b = Color.blue(color);
+                // Alpha pre-multiplied:
+                float alphaFactor = a / 255f;
+                r *= alphaFactor;
+                g *= alphaFactor;
+                b *= alphaFactor;
+                // Turn ARGB to ABGR which was used in Skia internal.
+                parcel.writeInt(Color.argb(a,
+                        (int) (b * alphaFactor),
+                        (int) (g * alphaFactor),
+                        (int) (r * alphaFactor)));
+            }
         } else {
             // it's no color table
             parcel.writeInt(0);

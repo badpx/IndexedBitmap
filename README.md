@@ -10,7 +10,7 @@ You can either add the library to your application as a library project or add t
 
 ```
 dependencies {
-    compile 'com.badpx.indexbitmap:library:1.0.0
+    compile 'com.badpx.indexbitmap:library:1.0.1'
 }
 ```
 
@@ -22,18 +22,18 @@ dependencies {
 public class IndexBitmapFactory {
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int width, int height);
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride, int width, int height);
-                                      
+
     /**
      * Create a 8-bits indexed bitmap.
-     * @param pixels Array of Color Index used to initialize the pixels.
-     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
-     *                   where the bitmap bytes are interpreted as indices into the colorTable(array length must be <= 256).
+     * @param pixels Array of Color Index used to initialize the pixels.This array must be at least as large as width * height.
+     * @param colorTable Array of Colors (non-premultiplied 32-bit ARGB colors) used by 8-bit bitmaps,
+     *                   where the bitmap bytes are interpreted as indices into the colorTable.
      * @param offset Number of values to skip before the first pixel in the array of pixels.
      * @param stride Number of pixels in the array between rows (must be >= width).
      * @param width The width of the bitmap.
      * @param height The height of the bitmap.
      * @param mutable True if the resulting bitmap should be mutable (i.e. its pixels can be modified)
-     */
+     */                                 
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride, int width, int height, boolean mutable);
 }
 ```
@@ -51,7 +51,7 @@ public class BitmapHelper {
     /**
      * Change color table of the bitmap.
      * @param bitmap A indexed bitmap.
-     * @param colorTable Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
+     * @param colorTable Array of Colors (non-premultiplied 32-bit ARGB colors) used by 8-bit bitmaps,
      *                   where the bitmap bytes are interpreted as indices into the colorTable.*/
     public static int changeColorTable(Bitmap bitmap, int[] colorTable);
 }
@@ -61,6 +61,6 @@ public class BitmapHelper {
 A Indexed Bitmap should not be used as target for a Canvas, that means the below code doesn't work:
 
 ```java
-Canvas canvas = new Canvas(aIndexedBitmap);
-canvas.drawSomething(...);   // It can't draw anything!
+Canvas canvas = new Canvas(indexedBitmap);
+canvas.drawSomething(...);   // It can't draw anything to the indexedBitmap!
 ```

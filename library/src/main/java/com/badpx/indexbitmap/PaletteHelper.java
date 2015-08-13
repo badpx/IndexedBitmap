@@ -18,7 +18,7 @@ public class PaletteHelper {
             for(r = 0; r < 256; r += 36) {
                 for(g = 0; g < 256; g += 36) {
                     for(b = 0; b < 256; b += 84) {
-                        palette[i] = Color.rgb(b, g, r);
+                        palette[i] = Color.rgb(r, g, b);
                         i++;
                     }
                 }
@@ -38,7 +38,7 @@ public class PaletteHelper {
                 for (r = 0; r < 256; r += 84) {
                     for (g = 0; g < 256; g += 84) {
                         for (b = 0; b < 256; b += 84) {
-                            palette[i] = Color.argb(a, b, g, r);
+                            palette[i] = Color.argb(a, r, g, b);
                             i++;
                         }
                     }
@@ -59,7 +59,7 @@ public class PaletteHelper {
                 for (r = 0; r < 256; r += 84) {
                     for (g = 0; g < 256; g += 36) {
                         for (b = 0; b < 256; b += 84) {
-                            palette[i] = Color.argb(a, b, g, r);
+                            palette[i] = Color.argb(a, r, g, b);
                             i++;
                         }
                     }

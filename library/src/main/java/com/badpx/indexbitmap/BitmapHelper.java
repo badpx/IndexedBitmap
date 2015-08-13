@@ -1,12 +1,13 @@
 package com.badpx.indexbitmap;
 
 import android.graphics.Bitmap;
+import android.graphics.Color;
 
 /**
  * Created by dk on 15-8-11.
  */
 public class BitmapHelper {
-    private static final boolean IS_COLOR_TABLE_LOCATED;
+    public static final boolean IS_COLOR_TABLE_LOCATED;
     static {
         System.loadLibrary("skbitmap_helper");
 
@@ -17,7 +18,7 @@ public class BitmapHelper {
         byte[] sPixels = new byte[1];
         int[] sPalette = new int[8];
         for (int i = 0; i < 8; ++i) {
-            sPalette[i] = i * i + i;
+            sPalette[i] = Color.rgb(0, i * i + i, 0);
         }
         Bitmap sSample = IndexBitmapFactory.createBitmap(sPixels, sPalette, 1, 1);
         return nativeLocateColorTable(sSample, sPalette);
