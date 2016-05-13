@@ -12,7 +12,8 @@ jfieldID gBitmap_widthFieldID;
 jfieldID gBitmap_heightFieldID;
 jmethodID  gBitmap_isMutableMethodID;
 
-static int gBmpInfoFieldsBase;
+static uint32_t gBmpInfoFieldsBase;
+static uint8_t gIndex8ConfigValue;
 
 int getApiLevel(JNIEnv* env);
 int computeBytesPerPixel(uint32_t config);
@@ -41,7 +42,7 @@ bool setupLibrary(JNIEnv* env) {
         if (NULL == bitmap_class) return false;
         if (apiLevel < 21) {
             gBitmap_nativeBitmapFieldID = env->GetFieldID(bitmap_class, "mNativeBitmap", "I");
-        } else {
+        } else if (apiLevel < 23) {
             gBitmap_nativeBitmapFieldID = env->GetFieldID(bitmap_class, "mNativeBitmap", "J");
         }
         if (NULL == gBitmap_nativeBitmapFieldID) return false;
@@ -62,6 +63,13 @@ bool setupLibrary(JNIEnv* env) {
     return true;
 }
 
+jboolean JNICALL Init(JNIEnv* env, jobject, jobject index8bitmap) {
+    if (NULL != index8bitmap) {
+        gIndex8ConfigValue = GetConfig(env, NULL, index8bitmap);
+        int location = locateColorTable(env, index8bitmap);
+    }
+}
+
 jint JNICALL GetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
     if (NULL != javaBitmap) {
         AndroidBitmapInfo bmpInfo;
@@ -69,10 +77,6 @@ jint JNICALL GetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
         return computeBytesPerPixel(bmpInfo.format);
     }
     return 0;
-}
-
-jint JNICALL LocateColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray colorTable) {
-    return locateColorTable(env, javaBitmap, colorTable);
 }
 
 jint JNICALL GetColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray output) {
@@ -129,6 +133,76 @@ jint JNICALL ChangeColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArra
     return -1;
 }
 
+jint JNICALL Index8FakeToAlpha8(JNIEnv* env, jobject, jobject javaBitmap, jboolean fake) {
+    if (NULL != javaBitmap) {
+        if (NULL != getColorTable(env, javaBitmap)) {
+            int infoFieldsBase = 0;
+            int32_t* bitmap = (int32_t*)env->GetIntField(javaBitmap, gBitmap_nativeBitmapFieldID);
+            AndroidBitmapInfo bmpInfo;
+            AndroidBitmap_getInfo(env, javaBitmap, &bmpInfo);
+
+            if (getApiLevel(env) < 21) {
+                infoFieldsBase = locateBitmapInfoFieldsBaseBelowAPI20(bitmap, bmpInfo);
+            } else {
+                infoFieldsBase = locateBitmapInfoFieldsBaseAboveAPI20(bitmap, bmpInfo);
+            }
+            if (infoFieldsBase > 2) {
+                uint8_t* pConfig = (uint8_t*)(bitmap + infoFieldsBase + 3);
+                int oldConfig = *pConfig;
+                int config = fake ? gIndex8ConfigValue - 1: gIndex8ConfigValue;
+                *pConfig = config;
+
+                LOGD("Set bitmap config from %d to %d", oldConfig, config);
+                return 0;
+            }
+        }
+    }
+    return -1;
+}
+
+jint JNICALL GetConfig(JNIEnv* env, jobject, jobject javaBitmap) {
+    if (NULL != javaBitmap) {
+        int infoFieldsBase = 0;
+        int32_t* bitmap = (int32_t*)env->GetIntField(javaBitmap, gBitmap_nativeBitmapFieldID);
+        AndroidBitmapInfo bmpInfo;
+        AndroidBitmap_getInfo(env, javaBitmap, &bmpInfo);
+
+        if (getApiLevel(env) < 21) {
+            infoFieldsBase = locateBitmapInfoFieldsBaseBelowAPI20(bitmap, bmpInfo);
+        } else {
+            infoFieldsBase = locateBitmapInfoFieldsBaseAboveAPI20(bitmap, bmpInfo);
+        }
+        if (infoFieldsBase > 2) {
+            uint8_t* pConfig = (uint8_t*)(bitmap + infoFieldsBase + 3);
+            return (jint)*pConfig;
+        }
+    }
+    return 0;
+}
+
+jint JNICALL SetConfig(JNIEnv* env, jobject, jobject javaBitmap, jint config) {
+    if (NULL != javaBitmap) {
+        int infoFieldsBase = 0;
+        int32_t* bitmap = (int32_t*)env->GetIntField(javaBitmap, gBitmap_nativeBitmapFieldID);
+        AndroidBitmapInfo bmpInfo;
+        AndroidBitmap_getInfo(env, javaBitmap, &bmpInfo);
+
+        if (getApiLevel(env) < 21) {
+            infoFieldsBase = locateBitmapInfoFieldsBaseBelowAPI20(bitmap, bmpInfo);
+        } else {
+            infoFieldsBase = locateBitmapInfoFieldsBaseAboveAPI20(bitmap, bmpInfo);
+        }
+        if (infoFieldsBase > 2) {
+            uint8_t* pConfig = (uint8_t*)(bitmap + infoFieldsBase + 3);
+            int oldConfig = *pConfig;
+            *pConfig = config;
+            LOGD("Set bitmap config from %d to %d", oldConfig, config);
+            return oldConfig;
+        }
+    }
+    return 0;
+}
+
 int getApiLevel(JNIEnv* env) {
     static int sApiLevel = 0;
 
@@ -181,7 +255,7 @@ int computeBytesPerPixel(uint32_t config) {
 int locateColorTable(JNIEnv* env, jobject javaBitmap, jintArray colorTable) {
     static int sColorTableOffset = 0;
 
-    if (NULL != javaBitmap && NULL != colorTable && 0 == sColorTableOffset) {
+    if (NULL != javaBitmap && (NULL != colorTable || 0 == sColorTableOffset)/*TODO: fix it*/) {
         int bitmap = env->GetIntField(javaBitmap, gBitmap_nativeBitmapFieldID);
         AndroidBitmapInfo bmpInfo;
         AndroidBitmap_getInfo(env, javaBitmap, &bmpInfo);

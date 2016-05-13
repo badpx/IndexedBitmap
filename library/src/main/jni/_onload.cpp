@@ -6,15 +6,13 @@
 #define LOCAL_DEBUG 0
 
 static JNINativeMethod methods[] = {
+    { "nativeInit", "(Landroid/graphics/Bitmap;)Z", (void*)Init },
     { "nativeGetBytesPerPixel", "(Landroid/graphics/Bitmap;)I", (void*)GetBytesPerPixel },
-    { "nativeLocateColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)LocateColorTable },
     { "nativeGetColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)GetColorTable },
     { "nativeChangeColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)ChangeColorTable },
-    /*{ "nativeXU_Init_Ctrl", "(I)I", (void*)nativeXU_Init_Ctrl },
-    { "nativeXU_ASIC_Set_Data", "(IIB)I", (void*)nativeXU_ASIC_Set_Data },
-    { "nativeXU_ASIC_Get_Data", "(II[B)I", (void*)nativeXU_ASIC_Get_Data },
-    { "nativeReadI2C", "(IJI[II)I", (void*)nativeReadI2C },
-    { "nativeSetI2C", "(IJIII)I", (void*)nativeSetI2C },*/
+    { "nativeIndex8FakeToAlpha8", "(Landroid/graphics/Bitmap;Z)I", (void*)Index8FakeToAlpha8 },
+    { "nativeGetConfig", "(Landroid/graphics/Bitmap;)I", (void*)GetConfig },
+    { "nativeSetConfig", "(Landroid/graphics/Bitmap;I)I", (void*)SetConfig },
 };
 
 jint registerNativeMethods(JNIEnv* env, const char *class_name, JNINativeMethod *methods, int num_methods) {
