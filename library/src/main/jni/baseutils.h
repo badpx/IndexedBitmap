@@ -39,5 +39,6 @@
 void setVM(JavaVM *);
 JavaVM *getVM();
 JNIEnv *getEnv();
+int getApiLevel(JNIEnv* env);
 
 #endif

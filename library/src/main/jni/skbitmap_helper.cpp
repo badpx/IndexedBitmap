@@ -4,6 +4,8 @@
 #include "baseutils.h"
 #include "skbitmap_helper.h"
 #include "color_table.h"
+#include "SkBitmapOperator.h"
+#include "SkBitmapOperatorFactory.h"
 
 #define TRAVERSAL_TIMES     16
 
@@ -15,7 +17,6 @@ jmethodID  gBitmap_isMutableMethodID;
 static uint32_t gBmpInfoFieldsBase;
 static uint8_t gIndex8ConfigValue;
 
-int getApiLevel(JNIEnv* env);
 int computeBytesPerPixel(uint32_t config);
 
 int locateColorTable(JNIEnv* env, jobject javaBitmap, jintArray colorTable = NULL);
@@ -28,46 +29,23 @@ ColorTable* getColorTable(JNIEnv* env, jobject javaBitmap);
 
 int locateBitmapInfoFieldsBaseBelowAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
 int locateBitmapInfoFieldsBaseAboveAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
+SkBitmapOperator* gSkBitmapOperator;
 
 bool setupLibrary(JNIEnv* env) {
-    static int sInitFlag;
-
-    if (0 == sInitFlag) {
-        int apiLevel = getApiLevel(env);
-
-        LOGD("NativeBitmapHelper initialize started");
-        sInitFlag = -1;
-
-        jclass bitmap_class = env->FindClass("android/graphics/Bitmap");
-        if (NULL == bitmap_class) return false;
-        if (apiLevel < 21) {
-            gBitmap_nativeBitmapFieldID = env->GetFieldID(bitmap_class, "mNativeBitmap", "I");
-        } else if (apiLevel < 23) {
-            gBitmap_nativeBitmapFieldID = env->GetFieldID(bitmap_class, "mNativeBitmap", "J");
-        }
-        if (NULL == gBitmap_nativeBitmapFieldID) return false;
-        gBitmap_widthFieldID = env->GetFieldID(bitmap_class, "mWidth", "I");
-        if (NULL == gBitmap_widthFieldID) return false;
-        gBitmap_heightFieldID = env->GetFieldID(bitmap_class, "mHeight", "I");
-        if (NULL == gBitmap_heightFieldID) return false;
-        gBitmap_isMutableMethodID = env->GetMethodID(bitmap_class, "isMutable", "()Z");
-        if (NULL == gBitmap_isMutableMethodID) return false;
-
-        sInitFlag = 1;  // Initialize success
-        LOGD("NativeBitmapHelper initialize finished");
-    } else if (-1 == sInitFlag) {
-        // Initialize failed, may be can't take some java fields or methods by reflection.
-        LOGD("NativeBitmapHelper initialize failed!");
-        return false;
+    gSkBitmapOperator = createSkBitmapOperator(env);
+    if (NULL != gSkBitmapOperator) {
+        return gSkBitmapOperator->setup(env);
     }
-    return true;
+    return false;
 }
 
 jboolean JNICALL Init(JNIEnv* env, jobject, jobject index8bitmap) {
     if (NULL != index8bitmap) {
-        gIndex8ConfigValue = GetConfig(env, NULL, index8bitmap);
-        int location = locateColorTable(env, index8bitmap);
+//        gIndex8ConfigValue = GetConfig(env, NULL, index8bitmap);
+//        int location = locateColorTable(env, index8bitmap);
+        return gSkBitmapOperator->travelForNativeFields(env, index8bitmap);
     }
+    return false;
 }
 
 jint JNICALL GetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
@@ -201,32 +179,6 @@ jint JNICALL SetConfig(JNIEnv* env, jobject, jobject javaBitmap, jint config) {
         }
     }
     return 0;
-}
-
-int getApiLevel(JNIEnv* env) {
-    static int sApiLevel = 0;
-
-    while (NULL != env && 0 == sApiLevel) {
-        sApiLevel = -1;
-
-        jclass versionClass = env->FindClass("android/os/Build$VERSION");
-        if (NULL == versionClass) {
-            LOGD("Can't find Build.VERSION");
-            break;
-        }
-
-        jfieldID sdkIntFieldID = env->GetStaticFieldID(versionClass, "SDK_INT", "I");
-        if (NULL == sdkIntFieldID) {
-            LOGD("Can't find Build.VERSION.SDK_INT");
-            break;
-        }
-
-        sApiLevel = env->GetStaticIntField(versionClass, sdkIntFieldID);
-        LOGD("SDK_INT = %d", sApiLevel);
-        break;
-    }
-
-    return sApiLevel;
 }
 
 int computeBytesPerPixel(uint32_t config) {

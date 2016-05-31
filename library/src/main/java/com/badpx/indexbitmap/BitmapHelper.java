@@ -7,12 +7,12 @@ import android.graphics.Color;
  * Created by dk on 15-8-11.
  */
 public class BitmapHelper {
-    private static volatile Boolean sIsInitialized;
+    private static Boolean sIsInitialized;
 
     static {
         try {
             System.loadLibrary("skbitmap_helper");
-            initialize();
+            sIsInitialized = initialize();
         } catch (Throwable throwable) {
             throwable.printStackTrace();
         }
@@ -34,7 +34,7 @@ public class BitmapHelper {
                 }
             }
         }
-        return sIsInitialized;
+        return null != sIsInitialized ? sIsInitialized : false;
     }
 
     public static boolean isInitialized() {

@@ -50,6 +50,9 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
         return JNI_ERR;
     }
     if (!setupLibrary(env)) {
+        #if LOCAL_DEBUG
+            LOGF("setup library failed!");
+        #endif
         return JNI_ERR;
     }
 
