@@ -1,11 +1,13 @@
 
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 #include <android/log.h>
-#include <android/bitmap.h>
 #include "SkBitmapOperator.h"
 #include "baseutils.h"
 #include "color_table.h"
+
+#define BITMAP_CLASS_NAME "android/graphics/Bitmap"
 
 SkBitmapOperator::SkBitmapOperator(int* skBitmapFieldOffset, size_t skFieldNum,
     JavaFieldInfo* bitmapFields, size_t fieldNum,
@@ -44,23 +46,40 @@ bool SkBitmapOperator::setup(JNIEnv* env) {
         LOGD("NativeBitmapHelper initialize started");
         sInitFlag = -1;
 
-        jclass bitmap_class = env->FindClass("android/graphics/Bitmap");
+        jclass bitmap_class = env->FindClass(BITMAP_CLASS_NAME);
         if (NULL == bitmap_class) {
             LOGE("Can't find java Bitmap class!");
             return false;
         }
 
+        LOGD("Start get fields for Bitmap by reflection");
         if (NULL != mBitmapFieldInfo) {
             for (int i = 0; i < FIELDS_NUM; ++i) {
                 JavaFieldInfo* fieldInfo = mBitmapFieldInfo + i;
                 if (NULL != fieldInfo && NULL != fieldInfo->name && NULL != fieldInfo->signature) {
                     LOGD("Field name = %s, signature=%s", fieldInfo->name, fieldInfo->signature);
-                    fieldInfo->fieldID = env->GetFieldID(bitmap_class, fieldInfo->name, fieldInfo->signature);
-                    if (NULL == fieldInfo->fieldID) return false;
+                    jclass clazz = bitmap_class;
+                    if (NULL != fieldInfo->innerClass) {
+                        char className[64];
+                        // TODO: change to std::string.append()
+                        sprintf(className, "%s$%s", BITMAP_CLASS_NAME, fieldInfo->innerClass);
+                        clazz = env->FindClass(className);
+                        LOGD("Find %s class=%p", className, clazz);
+                    }
+                    if (NULL != clazz) {
+                        fieldInfo->fieldID = env->GetFieldID(clazz, fieldInfo->name, fieldInfo->signature);
+                    }
+                    if (NULL == fieldInfo->fieldID) {
+                        LOGE("Can't find such field in class(%p)!", clazz);
+                        return false;
+                    } else {
+                        LOGD("Field was found in class(%p)", clazz);
+                    }
                 }
             }
         }
 
+        LOGD("Start get methods for Bitmap by reflection");
         if (NULL != mBitmapMethodInfo) {
             for (int i = 0; i < METHODS_NUM; ++i) {
                 JavaMethodInfo* methodInfo = mBitmapMethodInfo + i;
@@ -110,62 +129,69 @@ bool SkBitmapOperator::travelForNativeFields(JNIEnv* env, jobject index8Bitmap, 
                 LOGE("necessary information missing!");
                 return false;
             }
+        }
 
-            for (int i = 0; i < TRAVERSAL_TIMES; ++i, ++bitmap) {
-                if (0 != ((int)bitmap & 3)) { //TODO: just for ARM?
-                    // Address of bitmap not align to 4
-                    continue;
+        LOGD("Start traversal for native fields...");
+        for (int i = 0; i < TRAVERSAL_TIMES; ++i, ++bitmap) {
+            //TODO: just for ARM?
+            if (0 != ((int)bitmap & 3)) {
+                // Address of bitmap not align to 4
+                continue;
+            }
+            LOGD("Traversal times = %d in %p", i, *((int*)bitmap));
+
+            do {
+                if (!locateSize(bitmap, bmpInfo.width, bmpInfo.height)) {
+                    break;
+                }
+                LOGD("fWidth/fHeight located");
+
+                if (!locateRowBytes(bitmap, bmpInfo.stride)) {
+                    break;
+                }
+                LOGD("fRowBytes located");
+
+                uint8_t config = locateConfig(bitmap);
+                if (locateColorType(bitmap)) {
+                    LOGD("fColorType located");
+                } else if (config > 0) {
+                    setIndex8ConfigValue(config);
+                    LOGD("fConfig located");
+                } else {
+                    LOGW("Neither fConfig nor fColorType can located!");
+                    break;
                 }
 
-                do {
-                    if (!locateSize(bitmap, bmpInfo.width, bmpInfo.height)) {
-                        break;
-                    }
+                if (!locateColorTable(env, bitmap, palette)) {
+                    break;
+                }
+                LOGD("fColorTable located");
 
-                    if (!locateRowBytes(bitmap, bmpInfo.stride)) {
-                        break;
-                    }
+                if (locateAlphaType(bitmap)) {
+                    LOGD("fAlphaType located");
+                }
 
-                    if (!locateColorTable(env, bitmap, palette)) {
-                        break;
+                LOGD("Traversal for field base success(base=%d)", i);
+                for (int n = 0; n < SK_FIELDS_NUM; ++n) {
+                    int offset = mSkBitmapFieldOffset[n];
+                    if (INVALID_OFFSET != offset) {
+                        // Adjust relative offset to absolute value.
+                        mSkBitmapFieldOffset[n] = offset + i;
                     }
+                }
 
-                    uint8_t config = locateConfig(bitmap);
-                    if (locateColorType(bitmap)) {
-                        LOGD("fColorType located");
-                    } else if (config > 0) {
-                        setIndex8ConfigValue(config);
-                    } else {
-                        LOGW("Neither fConfig nor fColorType can located!");
-                        break;
-                    }
-
-                    if (locateAlphaType(bitmap)) {
-                        LOGD("fAlphaType located");
-                    }
-
-                    LOGD("Traversal for field base success(base=%d)", i);
-                    for (int n = 0; n < SK_FIELDS_NUM; ++n) {
-                        int offset = mSkBitmapFieldOffset[n];
-                        if (INVALID_OFFSET != offset) {
-                            // Adjust relative offset to absolute value.
-                            mSkBitmapFieldOffset[n] = offset + i;
-                        }
-                    }
-
-                    return true;
-                } while (false);
-            }
-            LOGD("traversal for fields failed!");
+                return true;
+            } while (false);
         }
     }
-
+    LOGD("traversal for fields failed!");
     return false;
 }
 
+
 void* SkBitmapOperator::getNativeBitmap(JNIEnv* env, jobject javaBitmap) const {
     if (NULL != javaBitmap && NULL != mBitmapFieldInfo[NATIVE_BITMAP].fieldID) {
-        return (void*)env->GetIntField(javaBitmap, mBitmapFieldInfo[NATIVE_BITMAP].fieldID);
+        return (void*)env->GetLongField(javaBitmap, mBitmapFieldInfo[NATIVE_BITMAP].fieldID);
     }
     return NULL;
 }

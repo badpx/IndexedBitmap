@@ -15,7 +15,7 @@ import java.util.Arrays;
 public class IndexBitmapFactory {
     private final static String TAG = "IndexBitmapFactory";
     private static final int IN_PLACE_FLAG_BASE = 28;
-    private static final int IN_PLACE_FLAG_BASE_ABOVE_KITKAT = 32;
+    private static final int IN_PLACE_FLAG_BASE_ABOVE_KITKAT = 32;  // Add write alpha type to parcel
 
     /**
      * Create a 8-bits immutable indexed bitmap.

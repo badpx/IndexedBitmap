@@ -32,7 +32,6 @@ android {
             moduleName "skbitmap_helper"
             ldLibs "log", "jnigraphics"
             abiFilters "armeabi", "armeabi-v7a", "x86"
-            stl "stlport_static"
         }
     }
 

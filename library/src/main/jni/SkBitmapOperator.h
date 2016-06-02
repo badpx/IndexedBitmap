@@ -3,17 +3,20 @@
 #define __SK_BITMAP_OPERATOR_H__
 
 #include <cstdint>
+#include <android/bitmap.h>
 #include <jni.h>
 #include "SkTypeDef.h"
 #include "color_table.h"
 
 typedef struct {
+    const char* innerClass;
     const char* name;
     const char* signature;
     jfieldID  fieldID;
 } JavaFieldInfo;
 
 typedef struct {
+    const char* innerClass;
     const char* name;
     const char* signature;
     jmethodID methodID;
@@ -59,7 +62,7 @@ public:
     virtual bool setup(JNIEnv* env);
     virtual bool detectMemoryLayout(JNIEnv* env, jobject index8Bitmap, jintArray palette);
 
-    void* getNativeBitmap(JNIEnv* env, jobject javaBitmap) const;
+    virtual void* getNativeBitmap(JNIEnv* env, jobject javaBitmap) const;
     uint8_t getConfig(JNIEnv* env, jobject javaBitmap) const;
     uint8_t setConfig(JNIEnv* env, jobject javaBitmap, uint8_t config);
     uint32_t getRowBytes(JNIEnv* env, jobject javaBitmap) const;
@@ -84,7 +87,7 @@ public:
     }
 
 protected:
-    const static int TRAVERSAL_TIMES = 32;
+    const static int TRAVERSAL_TIMES = 64;
 
     virtual bool locateColorTable(JNIEnv* env, char* bitmap, jintArray expectPalette) const;
     virtual int locateConfig(char* bitmap) const;
@@ -103,8 +106,8 @@ protected:
     virtual bool locateColorType(char* bitmap) const;
     virtual bool locateAlphaType(char* bitmap) const;
 
-    void* getColorTable(JNIEnv* env, jobject javaBitmap) const;
-    bool travelForNativeFields(JNIEnv* env, jobject index8Bitmap, jintArray palette);
+    virtual void* getColorTable(JNIEnv* env, jobject javaBitmap) const;
+    virtual bool travelForNativeFields(JNIEnv* env, jobject index8Bitmap, jintArray palette);
 
     void setIndex8ConfigValue(uint8_t value) {
         mIndex8ConfigRealValue = value;
@@ -118,6 +121,7 @@ protected:
         return mIsAllFieldsLocated;
     }
 
+    // TODO: change to std::map
     int* mSkBitmapFieldOffset;
     JavaFieldInfo* mBitmapFieldInfo;
     JavaMethodInfo* mBitmapMethodInfo;

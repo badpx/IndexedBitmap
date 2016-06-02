@@ -23,13 +23,13 @@ public class BitmapHelper {
         if (null == sIsInitialized) {
             synchronized (BitmapHelper.class) {
                 if (null == sIsInitialized) {
-                    byte[] sPixels = new byte[1];
+                    byte[] sPixels = new byte[2];
                     int[] palette = new int[8];
                     for (int i = 0; i < 8; ++i) {
-                        palette[i] = Color.rgb(0, i * i + i, 0);
+                        palette[i] = Color.rgb(0xAA, i * i + i, 0xAA);
                     }
                     // IMPORTANT: Create a tiny indexed bitmap to detecting native memory model.
-                    Bitmap detector = IndexBitmapFactory.createBitmap(sPixels, palette, 1, 1);
+                    Bitmap detector = IndexBitmapFactory.createBitmap(sPixels, palette, 1, 2);
                     sIsInitialized = nativeInit(detector, palette);
                     detector.recycle();
                 }

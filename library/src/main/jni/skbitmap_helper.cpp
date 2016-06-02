@@ -13,6 +13,7 @@ SkBitmapOperator* gSkBitmapOperator;
 int computeBytesPerPixel(uint32_t config);
 
 bool setupLibrary(JNIEnv* env) {
+    LOGI("sizeof(void*)=%d", sizeof(void*));
     gSkBitmapOperator = createSkBitmapOperator(env);
     if (NULL != gSkBitmapOperator) {
         return gSkBitmapOperator->setup(env);

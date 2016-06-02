@@ -18,8 +18,9 @@
 #define PackABGR32(a, b, g, r) ((a << 24) | (b << 16) | (g << 8) | (r << 0))
 
 typedef uint32_t PMColor;
+typedef uint32_t SkPMColor; // defined in SkColor.h
 
-typedef struct ColorTable {
+typedef struct ColorTable { // defined in SkColorTable.h
     private:
         void*   fVirtualPointer;
         mutable int32_t fRefCnt;
@@ -31,15 +32,15 @@ typedef struct ColorTable {
         uint8_t   fFlags;
 } ColorTable;
 
-/*typedef struct ColorTableNew {
+typedef struct ColorTableAPI23 {
     private:
         void*   fVirtualPointer;
         mutable int32_t fRefCnt;
 
     public:
     SkPMColor*                          fColors;
-    SkLazyPtr<uint16_t, Free16BitCache> f16BitCache; // equals to mutable T*
+    /*SkLazyPtr<uint16_t, Free16BitCache>*/mutable uint16_t* f16BitCache;
     int                                 fCount;
-} ColorTableNew;*/
+} ColorTableAPI23;
 
 #endif
