@@ -1,16 +1,17 @@
 
+#include <cassert>
 #include <cstring>
 #include <android/log.h>
 #include <android/bitmap.h>
 #include "SkBitmapOperator.h"
 #include "baseutils.h"
+#include "color_table.h"
 
 SkBitmapOperator::SkBitmapOperator(int* skBitmapFieldOffset, size_t skFieldNum,
     JavaFieldInfo* bitmapFields, size_t fieldNum,
     JavaMethodInfo* bitmapMethods, size_t methodNum) :
-    mSkBitmapFieldBase(0),
-    mSkBitmapFieldOffset(NULL), mBitmapFieldInfo(NULL),
-    mBitmapMethodInfo(NULL)
+    mSkBitmapFieldOffset(NULL), mBitmapFieldInfo(NULL), mBitmapMethodInfo(NULL),
+    mIndex8ConfigRealValue(0), mIsAllFieldsLocated(false)
 {
     if (NULL != skBitmapFieldOffset && skFieldNum == SK_FIELDS_NUM) {
         mSkBitmapFieldOffset = new int[SK_FIELDS_NUM];
@@ -81,71 +82,378 @@ bool SkBitmapOperator::setup(JNIEnv* env) {
     return true;
 }
 
-bool SkBitmapOperator::travelForNativeFields(JNIEnv* env, jobject javaBitmap) {
-    if (NULL != javaBitmap && NULL != mSkBitmapFieldOffset) {
-        char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+bool SkBitmapOperator::detectMemoryLayout(JNIEnv* env, jobject index8Bitmap, jintArray palette) {
+    // TODO: find all fields when travel failed
+    bool allFieldsLocated = travelForNativeFields(env, index8Bitmap, palette);
+    if (allFieldsLocated) setAllFieldsLocated();
+    return allFieldsLocated;
+}
+
+bool SkBitmapOperator::travelForNativeFields(JNIEnv* env, jobject index8Bitmap, jintArray palette) {
+    if (NULL != mSkBitmapFieldOffset) {
+        char* bitmap = (char*)getNativeBitmap(env, index8Bitmap);
         AndroidBitmapInfo bmpInfo;
-        AndroidBitmap_getInfo(env, javaBitmap, &bmpInfo);
+        AndroidBitmap_getInfo(env, index8Bitmap, &bmpInfo);
 
-        int widthOffset = mSkBitmapFieldOffset[SK_WIDTH];
-        int heightOffset = mSkBitmapFieldOffset[SK_HEIGHT];
-        int rowBytesOffset = mSkBitmapFieldOffset[SK_ROW_BYTES];
+        if (NULL != bitmap && 0 == bmpInfo.format/* is index8 */) {
+            int widthOffset = mSkBitmapFieldOffset[SK_WIDTH];
+            int heightOffset = mSkBitmapFieldOffset[SK_HEIGHT];
+            int rowBytesOffset = mSkBitmapFieldOffset[SK_ROW_BYTES];
+            int configOffset = mSkBitmapFieldOffset[SK_CONFIG];
+            int colorTableOffset = mSkBitmapFieldOffset[SK_COLOR_TABLE];
+            int colorTypeOffset = mSkBitmapFieldOffset[SK_COLOR_TYPE];
+            int alphaTypeOffset = mSkBitmapFieldOffset[SK_ALPHA_TYPE];
+            if (INVALID_OFFSET == widthOffset || INVALID_OFFSET == heightOffset
+                || INVALID_OFFSET == rowBytesOffset || INVALID_OFFSET == colorTableOffset
+                || (INVALID_OFFSET == configOffset
+                    && (INVALID_OFFSET == colorTypeOffset || INVALID_OFFSET == alphaTypeOffset)) ) {
+                LOGE("necessary information missing!");
+                return false;
+            }
 
-        if (NULL != bitmap && 0 == mSkBitmapFieldBase) {
             for (int i = 0; i < TRAVERSAL_TIMES; ++i, ++bitmap) {
-                if (0 != ((int)bitmap & 1)) {
-                    LOGD("Address not align by 2, ignored...");
+                if (0 != ((int)bitmap & 3)) { //TODO: just for ARM?
+                    // Address of bitmap not align to 4
                     continue;
                 }
-                if ( *((int*)(bitmap + widthOffset)) == bmpInfo.width
-                    && *((int*)(bitmap + heightOffset)) == bmpInfo.height
-                    && *((uint32_t*)(bitmap + rowBytesOffset)) == bmpInfo.stride) {
-                    mSkBitmapFieldBase = i;
+
+                do {
+                    if (!locateSize(bitmap, bmpInfo.width, bmpInfo.height)) {
+                        break;
+                    }
+
+                    if (!locateRowBytes(bitmap, bmpInfo.stride)) {
+                        break;
+                    }
+
+                    if (!locateColorTable(env, bitmap, palette)) {
+                        break;
+                    }
+
+                    uint8_t config = locateConfig(bitmap);
+                    if (locateColorType(bitmap)) {
+                        LOGD("fColorType located");
+                    } else if (config > 0) {
+                        setIndex8ConfigValue(config);
+                    } else {
+                        LOGW("Neither fConfig nor fColorType can located!");
+                        break;
+                    }
+
+                    if (locateAlphaType(bitmap)) {
+                        LOGD("fAlphaType located");
+                    }
+
                     LOGD("Traversal for field base success(base=%d)", i);
+                    for (int n = 0; n < SK_FIELDS_NUM; ++n) {
+                        int offset = mSkBitmapFieldOffset[n];
+                        if (INVALID_OFFSET != offset) {
+                            // Adjust relative offset to absolute value.
+                            mSkBitmapFieldOffset[n] = offset + i;
+                        }
+                    }
+
                     return true;
-                }
+                } while (false);
             }
-            mSkBitmapFieldBase = -1;
-            LOGD("traversal for field offset failed!");
+            LOGD("traversal for fields failed!");
         }
     }
+
     return false;
 }
 
 void* SkBitmapOperator::getNativeBitmap(JNIEnv* env, jobject javaBitmap) const {
-    if (NULL != javaBitmap) {
+    if (NULL != javaBitmap && NULL != mBitmapFieldInfo[NATIVE_BITMAP].fieldID) {
         return (void*)env->GetIntField(javaBitmap, mBitmapFieldInfo[NATIVE_BITMAP].fieldID);
     }
     return NULL;
 }
 
-int SkBitmapOperator::getConfig(void* bitmap) {
-}
-int SkBitmapOperator::setConfig(void* bitmap, int config) {
-}
-int SkBitmapOperator::getRowBytes(void* bitmap) {
-}
-int SkBitmapOperator::setRowBytes(void* bitmap, int rowBytes) {
-}
-int SkBitmapOperator::getWidth(void* bitmap) {
-}
-int SkBitmapOperator::setWidth(void* bitmap, int width) {
-}
-int SkBitmapOperator::getHeight(void* bitmap) {
-}
-int SkBitmapOperator::setHeight(void* bitmap, int height) {
+bool SkBitmapOperator::locateColorTable(JNIEnv* env, char* bitmap, jintArray expectPalette) const {
+    bool located = false;
+    int colorTableOffset = mSkBitmapFieldOffset[SK_COLOR_TABLE];
+    if (INVALID_OFFSET != colorTableOffset) {
+        // Compare for locate native color table
+        ColorTable* colorTable = *(ColorTable**)(bitmap + colorTableOffset);
+        if (NULL != colorTable) {
+            assert(NULL != expectPalette);
+            int count = env->GetArrayLength(expectPalette);
+            int* array = env->GetIntArrayElements(expectPalette, NULL);
+            LOGD("Native colorTable count = %d. Expect palette count = %d", colorTable->fCount, count);
+
+            if (colorTable->fCount == count && memcmp(array, colorTable->fColors, count * sizeof(PMColor)) == 0) {
+                located = true;
+                LOGD("Color table is located");
+            } else {
+                LOGW("Color table verify failed!");
+            }
+            env->ReleaseIntArrayElements(expectPalette, array, 0);
+        }
+    }
+    return located;
 }
 
-PMColor* SkBitmapOperator::getColorTable(void* bitmap, size_t* count) {
-}
-void SkBitmapOperator::setColorTable(void* bitmap, PMColor* colors, size_t count) {
+int SkBitmapOperator::locateConfig(char* bitmap) const {
+    int configOffset = mSkBitmapFieldOffset[SK_CONFIG];
+    if (INVALID_OFFSET != configOffset) {
+        uint8_t config = *((uint8_t*)(bitmap + configOffset));
+        if (INDEX8_CONFIG_FOR_4_4_3 == config
+            || INDEX8_CONFIG == config) {
+            LOGD("kIndex8Config=%d", config);
+            return config;
+        }
+        LOGW("Unexpected config value!");
+    }
+    return 0;
 }
 
-int SkBitmapOperator::locateColorTable(void* bitmap) {
+bool SkBitmapOperator::locateColorType(char* bitmap) const {
+    int colorTypeOffset = mSkBitmapFieldOffset[SK_COLOR_TYPE];
+    if (INVALID_OFFSET != colorTypeOffset) {
+        int colorType = *((int*)(bitmap + colorTypeOffset));
+        return INDEX_8_SK_COLOR_TYPE == colorType;
+    }
+    return false;
 }
-int SkBitmapOperator::locateRowBytes(void* bitmap) {
+
+bool SkBitmapOperator::locateAlphaType(char* bitmap) const {
+    int alphaTypeOffset = mSkBitmapFieldOffset[SK_ALPHA_TYPE];
+    if (INVALID_OFFSET != alphaTypeOffset) {
+        int alphaType = *((uint8_t*)(bitmap + alphaTypeOffset));
+        if (alphaType >= kIgnore_SkAlphaType
+            && alphaType <= kLastEnum_SkAlphaType) {
+            return true;
+        }
+    }
+    return false;
 }
-int SkBitmapOperator::locateSize(void* bitmap) {
+
+void* SkBitmapOperator::getColorTable(JNIEnv* env, jobject javaBitmap) const {
+    int colorTableOffset = mSkBitmapFieldOffset[SK_COLOR_TABLE];
+    if (isAllFieldsLocated() && INVALID_OFFSET != colorTableOffset) {
+        char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+        if (NULL != bitmap) {
+            ColorTable* colorTable =
+                *(ColorTable**)(bitmap + colorTableOffset);
+            return colorTable;
+        }
+    }
+    return NULL;
 }
-int SkBitmapOperator::locateConfig(void* bitmap) {
+
+PMColor* SkBitmapOperator::getPalette(JNIEnv* env, jobject javaBitmap, uint8_t* count) const {
+    ColorTable* colorTable = (ColorTable*)getColorTable(env, javaBitmap);
+    if (NULL != colorTable) {
+        if (NULL != count) {
+            *count = colorTable->fCount;
+        }
+        return colorTable->fColors;
+    }
+
+    // The bitmap hasn't color table
+    if (NULL != count) {
+        *count = 0;
+    }
+    return NULL;
+}
+
+int SkBitmapOperator::setPalette(JNIEnv* env, jobject javaBitmap, PMColor* palette, uint8_t count) {
+    if (isAllFieldsLocated() && NULL != palette && count > 0) {
+        uint8_t colorCount;
+        PMColor* colors = getPalette(env, javaBitmap, &colorCount);
+        if (NULL != colors && colorCount > 0) {
+            count = count < colorCount ? count : colorCount;
+            memset(colors, 0, colorCount * sizeof(PMColor));
+            if (getAlphaType(env, javaBitmap) == kPremul_SkAlphaType) {
+                LOGD("Bitmap(%p) need premultiply...", javaBitmap);
+                for (int i = 0; i < count; ++i) {
+                    int color = palette[i];
+                    int a = SkColorGetA(color);
+                    int r = SkColorGetR(color);
+                    int g = SkColorGetG(color);
+                    int b = SkColorGetB(color);
+
+                    float alphaFactor = a / 255.0f;
+                    colors[i] = PackABGR32(a,
+                            int(b * alphaFactor),
+                            int(g * alphaFactor),
+                            int(r * alphaFactor));
+                }
+            } else {
+                memcpy(colors, palette, count * sizeof(PMColor));
+            }
+
+            return count; // real access color entity count
+        }
+    }
+    return 0;
+}
+
+uint8_t SkBitmapOperator::getConfig(JNIEnv* env, jobject javaBitmap) const {
+    if (isAllFieldsLocated()) {
+        int configOffset = mSkBitmapFieldOffset[SK_CONFIG];
+        if (INVALID_OFFSET != configOffset) {
+            uint8_t* bitmap = (uint8_t*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                return *(bitmap + configOffset);
+            }
+        }
+    }
+    return 0;
+}
+
+uint8_t SkBitmapOperator::setConfig(JNIEnv* env, jobject javaBitmap, uint8_t config) {
+    if (isAllFieldsLocated()) {
+        int configOffset = mSkBitmapFieldOffset[SK_CONFIG];
+        if (INVALID_OFFSET != configOffset) {
+            uint8_t* bitmap = (uint8_t*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                uint8_t oldConfig = *(bitmap + configOffset);
+                *(bitmap + configOffset) = config;
+                return oldConfig;
+            }
+        }
+    }
+    return -1;
+}
+
+uint32_t SkBitmapOperator::getRowBytes(JNIEnv* env, jobject javaBitmap) const {
+    if (isAllFieldsLocated()) {
+        int rowBytesOffset = mSkBitmapFieldOffset[SK_ROW_BYTES];
+        if (INVALID_OFFSET != rowBytesOffset) {
+            char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                return *((uint32_t*)(bitmap + rowBytesOffset));
+            }
+        }
+    }
+    return 0;
+}
+
+uint32_t SkBitmapOperator::setRowBytes(JNIEnv* env, jobject javaBitmap, uint32_t rowBytes) {
+    if (isAllFieldsLocated()) {
+        int rowBytesOffset = mSkBitmapFieldOffset[SK_ROW_BYTES];
+        if (INVALID_OFFSET != rowBytesOffset) {
+            char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                uint32_t oldRowBytes = *((uint32_t*)(bitmap + rowBytesOffset));
+                *((uint32_t*)(bitmap + rowBytesOffset)) = rowBytes;
+                return oldRowBytes;
+            }
+        }
+    }
+    return -1;
+}
+
+uint32_t SkBitmapOperator::getWidth(JNIEnv* env, jobject javaBitmap) const {
+    if (isAllFieldsLocated()) {
+        int widthOffset = mSkBitmapFieldOffset[SK_WIDTH];
+        if (INVALID_OFFSET != widthOffset) {
+            char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                return *((uint32_t*)(bitmap + widthOffset));
+            }
+        }
+    }
+    return 0;
+}
+
+uint32_t SkBitmapOperator::setWidth(JNIEnv* env, jobject javaBitmap, uint32_t width) {
+    if (isAllFieldsLocated()) {
+        int widthOffset = mSkBitmapFieldOffset[SK_WIDTH];
+        if (INVALID_OFFSET != widthOffset) {
+            char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                uint32_t oldWidth = *((uint32_t*)(bitmap + widthOffset));
+                *((uint32_t*)(bitmap + widthOffset)) = width;
+                return oldWidth;
+            }
+        }
+    }
+    return -1;
+}
+
+uint32_t SkBitmapOperator::getHeight(JNIEnv* env, jobject javaBitmap) const {
+    if (isAllFieldsLocated()) {
+        int heightOffset = mSkBitmapFieldOffset[SK_WIDTH];
+        if (INVALID_OFFSET != heightOffset) {
+            char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                return *((uint32_t*)(bitmap + heightOffset));
+            }
+        }
+    }
+    return 0;
+}
+
+uint32_t SkBitmapOperator::setHeight(JNIEnv* env, jobject javaBitmap, uint32_t height) {
+    if (isAllFieldsLocated()) {
+        int heightOffset = mSkBitmapFieldOffset[SK_HEIGHT];
+        if (INVALID_OFFSET != heightOffset) {
+            char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                uint32_t oldHeight = *((uint32_t*)(bitmap + heightOffset));
+                *((uint32_t*)(bitmap + heightOffset)) = height;
+                return oldHeight;
+            }
+        }
+    }
+    return -1;
+}
+
+int SkBitmapOperator::getAlphaType(JNIEnv* env, jobject javaBitmap) const {
+    if (isAllFieldsLocated()) {
+        int alphaTypeOffset = mSkBitmapFieldOffset[SK_ALPHA_TYPE];
+        if (INVALID_OFFSET != alphaTypeOffset) {
+            uint8_t* bitmap = (uint8_t*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                return *(bitmap + alphaTypeOffset);
+            }
+        }
+    }
+    return 0;
+}
+
+int SkBitmapOperator::setAlphatype(JNIEnv* env, jobject javaBitmap, int alphaType) {
+    if (isAllFieldsLocated()) {
+        int alphaTypeOffset = mSkBitmapFieldOffset[SK_ALPHA_TYPE];
+        if (INVALID_OFFSET != alphaTypeOffset) {
+            uint8_t* bitmap = (uint8_t*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                uint8_t oldAlphaType = *(bitmap + alphaTypeOffset);
+                *(bitmap + alphaTypeOffset) = alphaType;
+                return oldAlphaType;
+            }
+        }
+    }
+    return -1;
+}
+
+int SkBitmapOperator::getColorType(JNIEnv* env, jobject javaBitmap) const {
+    if (isAllFieldsLocated()) {
+        int colorTypeOffset = mSkBitmapFieldOffset[SK_COLOR_TYPE];
+        if (INVALID_OFFSET != colorTypeOffset) {
+            char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                return *((uint32_t*)(bitmap + colorTypeOffset));
+            }
+        }
+    }
+    return 0;
+}
+
+int SkBitmapOperator::setColorType(JNIEnv* env, jobject javaBitmap, int colorType) {
+    if (isAllFieldsLocated()) {
+        int colorTypeOffset = mSkBitmapFieldOffset[SK_COLOR_TYPE];
+        if (INVALID_OFFSET != colorTypeOffset) {
+            char* bitmap = (char*)getNativeBitmap(env, javaBitmap);
+            if (NULL != bitmap) {
+                uint32_t oldColorType = *((uint32_t*)(bitmap + colorTypeOffset));
+                *((uint32_t*)(bitmap + colorTypeOffset)) = colorType;
+                return oldColorType;
+            }
+        }
+    }
+    return -1;
 }

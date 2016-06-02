@@ -19,8 +19,6 @@ SkBitmapOperator* createSkBitmapOperator(JNIEnv* env) {
 
         JavaFieldInfo bitmapFiledInfo[] = {
             {"mNativeBitmap", "J", NULL},
-            {"mWidth", "I", NULL},
-            {"mHeight", "I", NULL},
         };
 
         JavaMethodInfo bitmapMethodInfo[] = {

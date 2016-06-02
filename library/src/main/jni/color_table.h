@@ -21,7 +21,7 @@ typedef uint32_t PMColor;
 
 typedef struct ColorTable {
     private:
-        void*   fVirtualTable;
+        void*   fVirtualPointer;
         mutable int32_t fRefCnt;
 
     public:
@@ -30,5 +30,16 @@ typedef struct ColorTable {
         uint16_t  fCount;
         uint8_t   fFlags;
 } ColorTable;
+
+/*typedef struct ColorTableNew {
+    private:
+        void*   fVirtualPointer;
+        mutable int32_t fRefCnt;
+
+    public:
+    SkPMColor*                          fColors;
+    SkLazyPtr<uint16_t, Free16BitCache> f16BitCache; // equals to mutable T*
+    int                                 fCount;
+} ColorTableNew;*/
 
 #endif

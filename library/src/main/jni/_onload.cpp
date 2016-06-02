@@ -6,13 +6,14 @@
 #define LOCAL_DEBUG 0
 
 static JNINativeMethod methods[] = {
-    { "nativeInit", "(Landroid/graphics/Bitmap;)Z", (void*)Init },
+    { "nativeInit", "(Landroid/graphics/Bitmap;[I)Z", (void*)Init },
     { "nativeGetBytesPerPixel", "(Landroid/graphics/Bitmap;)I", (void*)GetBytesPerPixel },
-    { "nativeGetColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)GetColorTable },
-    { "nativeChangeColorTable", "(Landroid/graphics/Bitmap;[I)I", (void*)ChangeColorTable },
+    { "nativeGetPalette", "(Landroid/graphics/Bitmap;[I)I", (void*)GetPalette },
+    { "nativeChangePalette", "(Landroid/graphics/Bitmap;[I)I", (void*)ChangePalette },
     { "nativeIndex8FakeToAlpha8", "(Landroid/graphics/Bitmap;Z)I", (void*)Index8FakeToAlpha8 },
     { "nativeGetConfig", "(Landroid/graphics/Bitmap;)I", (void*)GetConfig },
     { "nativeSetConfig", "(Landroid/graphics/Bitmap;I)I", (void*)SetConfig },
+    { "nativeGetIndex8Config", "()I", (void*)GetIndex8Config },
 };
 
 jint registerNativeMethods(JNIEnv* env, const char *class_name, JNINativeMethod *methods, int num_methods) {

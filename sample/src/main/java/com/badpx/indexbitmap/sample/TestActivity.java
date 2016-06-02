@@ -47,7 +47,7 @@ public class TestActivity extends Activity {
                 bmp.getWidth(), bmp.getHeight(), bmp.getRowBytes(), bmp.getConfig()));
         int[] palette = PaletteHelper.getARGB1232Palette();
 //        palette[0] = Color.RED;
-        int ret = BitmapHelper.changeColorTable(bmp, palette);
+        int ret = BitmapHelper.changePalette(bmp, palette);
 //        Log.d(TAG, "palette count = " + ret);
 
         Bitmap coffe = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher);

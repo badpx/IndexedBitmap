@@ -17,34 +17,6 @@ public class IndexBitmapFactory {
     private static final int IN_PLACE_FLAG_BASE = 28;
     private static final int IN_PLACE_FLAG_BASE_ABOVE_KITKAT = 32;
 
-    private static int NATIVE_INDEX_CONFIG = 1;
-
-    static {
-        NATIVE_INDEX_CONFIG = testNativeIndexConfigEnum();
-    }
-
-    // Decide the value of native index bitmap config.
-    private static int testNativeIndexConfigEnum() {
-        int nativeConfig = 2;   // For Android 4.4.3 and above
-        if (Build.VERSION.SDK_INT > 20) { // For Android 5.0 and above
-            // Since Android 5.0 the SkBitmap::Config was deprecated.
-            return nativeConfig;
-        }
-
-        Parcel parcel = createIndexBitmapParcel(new byte[1], null, 0, 0, 1, 1, false);
-
-        try {
-            Bitmap.CREATOR.createFromParcel(parcel).recycle();
-        } catch (Exception e) {
-            Log.d(TAG, "System version <= 4.4.2");
-            nativeConfig = 3;   // For Android 4.4.2 and below
-        } finally {
-            parcel.recycle();
-        }
-
-        return nativeConfig;
-    }
-
     /**
      * Create a 8-bits immutable indexed bitmap.
      * @param pixels Array of Color Index used to initialize the pixels.
@@ -116,8 +88,9 @@ public class IndexBitmapFactory {
             parcel.writeInt(6); // SkColorType
             parcel.writeInt(2); // kPremul_SkAlphaType
             inPlaceFlagBase = IN_PLACE_FLAG_BASE_ABOVE_KITKAT;
-        } else {
-            parcel.writeInt(NATIVE_INDEX_CONFIG); // Value of SkBitmap::Config::kIndex8_Config
+        } else if (Build.VERSION.SDK_INT < 20) {
+            // Value of SkBitmap::Config::kIndex8_Config
+            parcel.writeInt(BitmapHelper.getNativeIndex8Config());
         }
         parcel.writeInt(width);    // width
         parcel.writeInt(height);   // height
