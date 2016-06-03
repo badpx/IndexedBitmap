@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.graphics.*;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Display;
 import android.widget.ImageView;
 
 import com.badpx.indexbitmap.BitmapHelper;
@@ -14,23 +15,29 @@ import com.badpx.indexbitmap.PaletteHelper;
 public class TestActivity extends Activity {
 
     public static final String TAG = "IndexBitmap";
+    private int mScreenWidth;
+    private int mScreenHeight;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test);
 
+        Display display = getWindowManager().getDefaultDisplay();
+        mScreenWidth = display.getWidth();  // deprecated
+        mScreenHeight = display.getHeight();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        byte[] pixels = new byte[720 * 1280];
+        byte[] pixels = new byte[mScreenWidth * mScreenHeight];
         for (int i = 0; i < pixels.length; ++i) {
             pixels[i] = (byte) (i % 256);
         }
         int[] colorTable = PaletteHelper.getRGB332Palette();
-        Bitmap bmp = IndexBitmapFactory.createBitmap(pixels, colorTable, 0, 0, 720, 1280, true);
+        Bitmap bmp = IndexBitmapFactory.createBitmap(
+                pixels, colorTable, 0, 0, mScreenWidth, mScreenHeight, true);
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inBitmap = bmp;

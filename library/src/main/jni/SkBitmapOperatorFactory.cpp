@@ -8,7 +8,7 @@
 
 SkBitmapOperator* createSkBitmapOperator(JNIEnv* env) {
     int apiLevel = getApiLevel(env);
-    if (apiLevel >= 23) {
+    if (apiLevel >= _M_) {
         int skBitmapFieldOffset[] = {
             /*SK_WIDTH:*/ sizeof(void*)/*vptr*/ + sizeof(int32_t)/*fRefCnt*/ + sizeof(void*)/*fMutex*/,
             /*SK_HEIGHT:*/ sizeof(void*)/*vptr*/ + sizeof(int32_t)/*fRefCnt*/ + sizeof(void*)/*fMutex*/ + sizeof(int)/*fWidth*/,
@@ -33,7 +33,7 @@ SkBitmapOperator* createSkBitmapOperator(JNIEnv* env) {
             bitmapFiledInfo, NUM_ARRAY_ELEMENTS(bitmapFiledInfo),
             bitmapMethodInfo, NUM_ARRAY_ELEMENTS(bitmapMethodInfo)
         );
-    } else if (21 == apiLevel || 22 == apiLevel) {
+    } else if (_LOLLIPOP_ == apiLevel || _LOLLIPOP_MR1_ == apiLevel) {
         int skBitmapFieldOffset[] = {
             /*SK_WIDTH:*/ sizeof(void*)/*fColorTable* */ + sizeof(int32_t) * 2/*fPixelRefOrigin*/,
             /*SK_HEIGHT:*/ sizeof(void*)/*fColorTable* */ + sizeof(int32_t) * 2/*fPixelRefOrigin*/ + sizeof(int)/*fWidth*/,
@@ -57,7 +57,7 @@ SkBitmapOperator* createSkBitmapOperator(JNIEnv* env) {
             bitmapFiledInfo, NUM_ARRAY_ELEMENTS(bitmapFiledInfo),
             bitmapMethodInfo, NUM_ARRAY_ELEMENTS(bitmapMethodInfo)
         );
-    } else if (apiLevel == 19){
+    } else if (_KITKAT_ == apiLevel){
         int skBitmapFieldOffset[] = {
             /*SK_WIDTH:*/ sizeof(void*)/*fColorTable* */ + sizeof(int32_t)/*fRowBytes*/,
             /*SK_HEIGHT:*/ sizeof(void*)/*fColorTable* */ + sizeof(int32_t) * 2/*fRowBytes+fWidth*/,
