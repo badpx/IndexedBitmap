@@ -202,7 +202,8 @@ bool SkBitmapOperator::locateColorTable(JNIEnv* env, char* bitmap, jintArray exp
     if (INVALID_OFFSET != colorTableOffset) {
         // Compare for locate native color table
         ColorTable* colorTable = *(ColorTable**)(bitmap + colorTableOffset);
-        if (NULL != colorTable) {
+        if (NULL != colorTable
+            && GOOD_READ_PTR == checkBadReadPtr(colorTable, sizeof(ColorTable))) {
             assert(NULL != expectPalette);
             int count = env->GetArrayLength(expectPalette);
             int* array = env->GetIntArrayElements(expectPalette, NULL);

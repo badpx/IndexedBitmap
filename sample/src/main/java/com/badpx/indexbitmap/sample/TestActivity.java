@@ -25,12 +25,12 @@ public class TestActivity extends Activity {
     protected void onResume() {
         super.onResume();
 
-        byte[] pixels = new byte[400 * 400];
+        byte[] pixels = new byte[720 * 1280];
         for (int i = 0; i < pixels.length; ++i) {
             pixels[i] = (byte) (i % 256);
         }
         int[] colorTable = PaletteHelper.getRGB332Palette();
-        Bitmap bmp = IndexBitmapFactory.createBitmap(pixels, colorTable, 0, 0, 400, 400, true);
+        Bitmap bmp = IndexBitmapFactory.createBitmap(pixels, colorTable, 0, 0, 720, 1280, true);
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inBitmap = bmp;
@@ -54,7 +54,7 @@ public class TestActivity extends Activity {
         BitmapHelper.index8FakeToAlpha8(bmp, true);
         Canvas canvas = new Canvas();
         canvas.setBitmap(bmp);
-        bmp.eraseColor(0);
+        bmp.eraseColor(Color.argb(128, 0, 0, 0));
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         canvas.drawBitmap(coffe, 0, 0, paint);
         paint.setAlpha(1);

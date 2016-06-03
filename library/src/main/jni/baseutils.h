@@ -41,4 +41,9 @@ JavaVM *getVM();
 JNIEnv *getEnv();
 int getApiLevel(JNIEnv* env);
 
+#define BAD_READ_PTR     (-1)
+#define UNKNOWN_READ_PTR (0)
+#define GOOD_READ_PTR    (1)
+int checkBadReadPtr(void* ptr, size_t size);
+
 #endif

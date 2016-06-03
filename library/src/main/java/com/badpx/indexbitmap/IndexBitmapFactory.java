@@ -41,7 +41,7 @@ public class IndexBitmapFactory {
      */
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride,
                                       int width, int height) {
-        return createBitmap(pixels, colorTable, offset, stride, width, height, false);
+        return createBitmap(pixels, colorTable, offset, stride, width, height, true);
     }
 
     /**
