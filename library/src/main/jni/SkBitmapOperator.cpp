@@ -85,6 +85,14 @@ bool SkBitmapOperator::setup(JNIEnv* env) {
                 JavaMethodInfo* methodInfo = mBitmapMethodInfo + i;
                 if (NULL != methodInfo && NULL != methodInfo->name && NULL != methodInfo->signature) {
                     LOGD("Method name = %s, signature=%s", methodInfo->name, methodInfo->signature);
+                    jclass clazz = bitmap_class;
+                    if (NULL != methodInfo->innerClass) {
+                        char className[64];
+                        // TODO: change to std::string.append()
+                        sprintf(className, "%s$%s", BITMAP_CLASS_NAME, methodInfo->innerClass);
+                        clazz = env->FindClass(className);
+                        LOGD("Find %s class=%p", className, clazz);
+                    }
                     methodInfo->methodID = env->GetMethodID(bitmap_class, methodInfo->name, methodInfo->signature);
                     if (NULL == methodInfo->methodID) return false;
                 }
@@ -190,8 +198,13 @@ bool SkBitmapOperator::travelForNativeFields(JNIEnv* env, jobject index8Bitmap, 
 
 
 void* SkBitmapOperator::getNativeBitmap(JNIEnv* env, jobject javaBitmap) const {
-    if (NULL != javaBitmap && NULL != mBitmapFieldInfo[NATIVE_BITMAP].fieldID) {
-        return (void*)env->GetLongField(javaBitmap, mBitmapFieldInfo[NATIVE_BITMAP].fieldID);
+    JavaFieldInfo* fieldInfo = mBitmapFieldInfo + NATIVE_BITMAP;
+    if (NULL != javaBitmap && NULL != fieldInfo) {
+        if (strcmp(fieldInfo->signature, "J") == 0) {
+            return (void*)env->GetLongField(javaBitmap, fieldInfo->fieldID);
+        } else if (strcmp(fieldInfo->signature, "I") == 0) {
+            return (void*)env->GetIntField(javaBitmap, fieldInfo->fieldID);
+        }
     }
     return NULL;
 }
