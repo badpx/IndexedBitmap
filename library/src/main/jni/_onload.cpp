@@ -21,7 +21,7 @@ jint registerNativeMethods(JNIEnv* env, const char *class_name, JNINativeMethod 
 
 	jclass clazz = env->FindClass(class_name);
 	if (LIKELY(clazz)) {
-		int result = env->RegisterNatives(clazz, methods, num_methods);
+		result = env->RegisterNatives(clazz, methods, num_methods);
 		if (UNLIKELY(result < 0)) {
 			LOGE("registerNativeMethods failed(class=%s)", class_name);
 		}

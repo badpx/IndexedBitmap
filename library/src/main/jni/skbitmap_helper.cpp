@@ -27,7 +27,7 @@ jboolean JNICALL Init(JNIEnv* env, jobject, jobject index8bitmap, jintArray colo
 //        int location = locateColorTable(env, index8bitmap);
         return gSkBitmapOperator->detectMemoryLayout(env, index8bitmap, colorTable);
     }
-    return false;
+    return JNI_FALSE;
 }
 
 jint JNICALL GetIndex8Config (JNIEnv* env) {
@@ -79,7 +79,7 @@ jint JNICALL ChangePalette(JNIEnv* env, jobject, jobject javaBitmap, jintArray p
 jboolean JNICALL Index8FakeToAlpha8(JNIEnv* env, jobject, jobject javaBitmap, jboolean fake) {
     if (!gSkBitmapOperator->hasColorTable(env, javaBitmap)) {
         LOGW("Bitmap(%p) hasn't color table!", javaBitmap);
-        return false;
+        return JNI_FALSE;
     }
 
     if (getApiLevel(env) < 20) {
@@ -94,7 +94,7 @@ jboolean JNICALL Index8FakeToAlpha8(JNIEnv* env, jobject, jobject javaBitmap, jb
                     return true;
                 } else {
                     LOGW("Bitmap(%p) is not INDEX8 color format!", javaBitmap);
-                    return false;
+                    return JNI_FALSE;
                 }
             } else {
                 // restore to INDEX8
@@ -102,7 +102,7 @@ jboolean JNICALL Index8FakeToAlpha8(JNIEnv* env, jobject, jobject javaBitmap, jb
                     gSkBitmapOperator->setConfig(env, javaBitmap, index8Config);
                 } else {
                     LOGW("Bitmap(%p) is not a faked ALPHA8 format bitmap!", javaBitmap);
-                    return false;
+                    return JNI_FALSE;
                 }
             }
         }
@@ -114,7 +114,7 @@ jboolean JNICALL Index8FakeToAlpha8(JNIEnv* env, jobject, jobject javaBitmap, jb
                 gSkBitmapOperator->setColorType(env, javaBitmap, kAlpha_8_SkColorType);
             } else {
                 LOGW("Bitmap(%p) is not INDEX8 color format!", javaBitmap);
-                return false;
+                return JNI_FALSE;
             }
         } else {
             // restore to INDEX8
@@ -122,11 +122,11 @@ jboolean JNICALL Index8FakeToAlpha8(JNIEnv* env, jobject, jobject javaBitmap, jb
                 gSkBitmapOperator->setColorType(env, javaBitmap, kIndex_8_SkColorType);
             } else {
                 LOGW("Bitmap(%p) is not a faked ALPHA8 format bitmap!", javaBitmap);
-                return false;
+                return JNI_FALSE;
             }
         }
     }
-    return false;
+    return JNI_FALSE;
 }
 
 jint JNICALL GetConfig(JNIEnv* env, jobject, jobject javaBitmap) {
