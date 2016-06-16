@@ -71,16 +71,18 @@ public:
     uint32_t setWidth(JNIEnv* env, jobject javaBitmap, uint32_t width);
     uint32_t getHeight(JNIEnv* env, jobject javaBitmap) const;
     uint32_t setHeight(JNIEnv* env, jobject javaBitmap, uint32_t height);
-    virtual int getAlphaType(JNIEnv* env, jobject javaBitmap) const;
-    virtual int setAlphatype(JNIEnv* env, jobject javaBitmap, int alphaType);
+    virtual int32_t getAlphaType(JNIEnv *env, jobject javaBitmap) const;
+    virtual int32_t setAlphaType(JNIEnv *env, jobject javaBitmap, int32_t alphaType);
     int getColorType(JNIEnv* env, jobject javaBitmap) const;
-    int setColorType(JNIEnv* env, jobject javaBitmap, int colorType);
+    int setColorType(JNIEnv *env, jobject javaBitmap, int32_t colorType);
 
     bool hasColorTable(JNIEnv* env, jobject javaBitmap) const {
         return NULL != getColorTable(env, javaBitmap);
     }
-    virtual PMColor* getPalette(JNIEnv* env, jobject javaBitmap, /*Output*/uint8_t* count) const;
-    virtual int setPalette(JNIEnv* env, jobject javaBitmap, PMColor* palette, uint8_t count);
+    virtual PMColor* getPalette(JNIEnv *env, jobject javaBitmap, /*Output*/
+                                uint16_t *count) const;
+    virtual int setPalette(JNIEnv *env, jobject javaBitmap, PMColor *palette,
+                           uint16_t count);
 
     uint8_t getIndex8ConfigValue() const {
         return mIndex8ConfigRealValue;
@@ -90,7 +92,7 @@ protected:
     const static int TRAVERSAL_TIMES = 64;
 
     virtual bool locateColorTable(JNIEnv* env, char* bitmap, jintArray expectPalette) const;
-    virtual int locateConfig(char* bitmap) const;
+    virtual uint8_t locateConfig(char *bitmap) const;
     virtual bool locateRowBytes(char* bitmap, uint32_t expectRowBytes) const {
         return (INVALID_OFFSET != mSkBitmapFieldOffset[SK_ROW_BYTES]
                 && *((uint32_t*)(bitmap + mSkBitmapFieldOffset[SK_ROW_BYTES])) == expectRowBytes);

@@ -36,12 +36,12 @@ static int register_native_methods(JNIEnv *env) {
 	if (registerNativeMethods(env,
 		"com/badpx/indexbitmap/BitmapHelper",
 		methods, NUM_ARRAY_ELEMENTS(methods)) < 0) {
-		return -1;
+		return JNI_ERR;
 	}
-    return 0;
+    return JNI_OK;
 }
 
-jint JNI_OnLoad(JavaVM *vm, void *reserved) {
+jint JNI_OnLoad(JavaVM *vm, void *) {
 #if LOCAL_DEBUG
     LOGI("JNI_OnLoad");
 #endif
@@ -58,7 +58,9 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     }
 
     // register native methods
-    int result = register_native_methods(env);
+	if (register_native_methods(env) != JNI_OK) {
+		return JNI_ERR;
+	}
 	setVM(vm);
 
 #if LOCAL_DEBUG

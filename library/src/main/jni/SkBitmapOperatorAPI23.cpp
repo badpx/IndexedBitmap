@@ -1,11 +1,5 @@
-
-#include <cassert>
-#include <cstdio>
-#include <cstring>
-#include <android/log.h>
+#include <stdio.h>
 #include <android/bitmap.h>
-#include "baseutils.h"
-#include "color_table.h"
 #include "SkBitmapOperatorAPI23.h"
 
 void* SkBitmapOperatorAPI23::getNativeBitmap(JNIEnv* env, jobject javaBitmap) const {

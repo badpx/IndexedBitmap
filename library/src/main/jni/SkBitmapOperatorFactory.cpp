@@ -1,7 +1,6 @@
 
 #include <jni.h>
 #include "baseutils.h"
-#include "color_table.h"
 #include "SkBitmapOperatorFactory.h"
 #include "SkBitmapOperator.h"
 #include "SkBitmapOperatorAPI23.h"

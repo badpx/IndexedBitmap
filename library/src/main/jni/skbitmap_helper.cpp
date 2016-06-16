@@ -1,6 +1,6 @@
-#include <cstdio>
-#include <cstring>
+#include <stdio.h>
 #include <android/bitmap.h>
+#include <string.h>
 #include "baseutils.h"
 #include "SkTypeDef.h"
 #include "skbitmap_helper.h"
@@ -10,7 +10,7 @@
 
 SkBitmapOperator* gSkBitmapOperator;
 
-int computeBytesPerPixel(uint32_t config);
+int computeBytesPerPixel(int32_t config);
 
 bool setupLibrary(JNIEnv* env) {
     LOGI("sizeof(void*)=%d", sizeof(void*));
@@ -23,14 +23,12 @@ bool setupLibrary(JNIEnv* env) {
 
 jboolean JNICALL Init(JNIEnv* env, jobject, jobject index8bitmap, jintArray colorTable) {
     if (NULL != index8bitmap) {
-//        gIndex8ConfigValue = GetConfig(env, NULL, index8bitmap);
-//        int location = locateColorTable(env, index8bitmap);
-        return gSkBitmapOperator->detectMemoryLayout(env, index8bitmap, colorTable);
+        return (jboolean) gSkBitmapOperator->detectMemoryLayout(env, index8bitmap, colorTable);
     }
     return JNI_FALSE;
 }
 
-jint JNICALL GetIndex8Config (JNIEnv* env) {
+jint JNICALL GetIndex8Config (JNIEnv* ) {
     return (jint)gSkBitmapOperator->getIndex8ConfigValue();
 }
 
@@ -45,7 +43,7 @@ jint JNICALL GetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
 
 jint JNICALL GetPalette(JNIEnv* env, jobject, jobject javaBitmap, jintArray output) {
     if (NULL != output) {
-        uint8_t colorCount = 0;
+        uint16_t colorCount = 0;
         PMColor* colorTable = gSkBitmapOperator->getPalette(env, javaBitmap, &colorCount);
         if (NULL != colorTable) {
             int count = env->GetArrayLength(output);
@@ -67,7 +65,8 @@ jint JNICALL ChangePalette(JNIEnv* env, jobject, jobject javaBitmap, jintArray p
     if (NULL != javaBitmap && NULL != palette) {
         int count = env->GetArrayLength(palette);
         int* array = env->GetIntArrayElements(palette, NULL);
-        count = gSkBitmapOperator->setPalette(env, javaBitmap, (PMColor*)array, count);
+        count = gSkBitmapOperator->setPalette(env, javaBitmap, (PMColor*)array,
+                                              (uint8_t) count);
         env->ReleaseIntArrayElements(palette, array, JNI_ABORT);
 
         return count;
@@ -85,13 +84,14 @@ jboolean JNICALL Index8FakeToAlpha8(JNIEnv* env, jobject, jobject javaBitmap, jb
     if (getApiLevel(env) < 20) {
         const uint8_t index8Config = gSkBitmapOperator->getIndex8ConfigValue();
         if (index8Config > 0) {
-            const uint8_t alpha8Config = index8Config - 1;
+            const uint8_t alpha8Config = (const uint8_t) (index8Config - 1);
             const int config = gSkBitmapOperator->getConfig(env, javaBitmap);
             if (fake) {
                 // INDEX8 fake to ALPHA8
                 if (index8Config == config) {
-                    gSkBitmapOperator->setConfig(env, javaBitmap, index8Config - 1);
-                    return true;
+                    gSkBitmapOperator->setConfig(env, javaBitmap,
+                                                 (uint8_t) (index8Config - 1));
+                    return JNI_TRUE;
                 } else {
                     LOGW("Bitmap(%p) is not INDEX8 color format!", javaBitmap);
                     return JNI_FALSE;
@@ -134,10 +134,10 @@ jint JNICALL GetConfig(JNIEnv* env, jobject, jobject javaBitmap) {
 }
 
 jint JNICALL SetConfig(JNIEnv* env, jobject, jobject javaBitmap, jint config) {
-    return gSkBitmapOperator->setConfig(env, javaBitmap, config);
+    return gSkBitmapOperator->setConfig(env, javaBitmap, (uint8_t) config);
 }
 
-int computeBytesPerPixel(uint32_t config) {
+int computeBytesPerPixel(int32_t config) {
     int bpp;
     switch (config) {
         case ANDROID_BITMAP_FORMAT_NONE:
