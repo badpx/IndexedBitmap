@@ -1,4 +1,4 @@
-package com.badpx.indexbitmap;
+package com.badpx.indexbitmap.graphics;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -40,6 +40,10 @@ public class IndexBitmapFactory {
         }
     }
 
+    public static Bitmap createBitmap(byte[] pixels, Palette palette, int width, int height) {
+        return createBitmap(pixels, palette.getColorTable(), 0, 0, width, height);
+    }
+
     /**
      * Create a 8-bits immutable indexed bitmap.
      * @param pixels Array of Color Index used to initialize the pixels.
@@ -65,6 +69,11 @@ public class IndexBitmapFactory {
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride,
                                       int width, int height) {
         return createBitmap(pixels, colorTable, offset, stride, width, height, true);
+    }
+
+    public static Bitmap createBitmap(byte[] pixels, Palette palette, int offset, int stride,
+                                      int width, int height, boolean mutable) {
+        return createBitmap(pixels, palette.getColorTable(), offset, stride, width, height, mutable);
     }
 
     /**

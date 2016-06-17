@@ -1,4 +1,4 @@
-package com.badpx.indexbitmap;
+package com.badpx.indexbitmap.graphics;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -54,12 +54,16 @@ public class BitmapHelper {
         return nativeGetPalette(bitmap, output);
     }
 
+    public static int setPalette(Bitmap bitmap, Palette palette) {
+        return nativeChangePalette(bitmap, palette.getColorTable());
+    }
+
     /**
      * Change color table of the bitmap.
      * @param bitmap A indexed bitmap.
      * @param palette Array of Colors (pre-multiplied 32-bit colors) used by 8-bit bitmaps,
      *                   where the bitmap bytes are interpreted as indices into the palette.*/
-    public static int changePalette(Bitmap bitmap, int[] palette) {
+    public static int setPalette(Bitmap bitmap, int[] palette) {
         return nativeChangePalette(bitmap, palette);
     }
 

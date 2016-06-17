@@ -34,11 +34,11 @@ jint registerNativeMethods(JNIEnv* env, const char *class_name, JNINativeMethod 
 static int register_native_methods(JNIEnv *env) {
 	LOGV("register native method:");
 	if (registerNativeMethods(env,
-		"com/badpx/indexbitmap/BitmapHelper",
-		methods, NUM_ARRAY_ELEMENTS(methods)) < 0) {
+							  PACKAGE_NAME,
+							  methods, NUM_ARRAY_ELEMENTS(methods)) < 0) {
 		return JNI_ERR;
 	}
-    return JNI_OK;
+	return JNI_OK;
 }
 
 jint JNI_OnLoad(JavaVM *vm, void *) {
