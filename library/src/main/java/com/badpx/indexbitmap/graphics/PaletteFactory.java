@@ -55,4 +55,12 @@ public class PaletteFactory {
         }
         return new Palette(colorTable);
     }
+
+    public static Palette getGrayPalette() {
+        int[] colorTable = new int[Palette.INDEX8_COLOR_TOTAL];
+        for (int i = 0; i < 256; ++i) {
+            colorTable[i] = Color.rgb(i, i, i);
+        }
+        return new Palette(colorTable);
+    }
 }
