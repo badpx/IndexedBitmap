@@ -10,7 +10,7 @@ You can either add the library to your application as a library project or add t
 
 ```
 dependencies {
-    compile 'com.badpx.indexbitmap:library:1.0.1'
+    compile 'com.badpx.indexbitmap:library:1.0.2'
 }
 ```
 
