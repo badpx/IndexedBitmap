@@ -136,9 +136,6 @@ public class IndexBitmapFactory {
                 int b = Color.blue(color);
                 // Alpha pre-multiplied:
                 float alphaFactor = a / 255f;
-                r *= alphaFactor;
-                g *= alphaFactor;
-                b *= alphaFactor;
                 // Turn ARGB to ABGR which was used in Skia internal.
                 parcel.writeInt(Color.argb(a,
                         (int) (b * alphaFactor),
