@@ -1,65 +1,35 @@
-#include <cstdio>
-#include <cstring>
+#include <stdio.h>
 #include <android/bitmap.h>
+#include <string.h>
 #include "baseutils.h"
+#include "SkTypeDef.h"
 #include "skbitmap_helper.h"
 #include "color_table.h"
+#include "SkBitmapOperator.h"
+#include "SkBitmapOperatorFactory.h"
 
-#define TRAVERSAL_TIMES     16
+SkBitmapOperator* gSkBitmapOperator;
 
-jfieldID gBitmap_nativeBitmapFieldID;
-jfieldID gBitmap_widthFieldID;
-jfieldID gBitmap_heightFieldID;
-jmethodID  gBitmap_isMutableMethodID;
-
-static int gBmpInfoFieldsBase;
-
-int getApiLevel(JNIEnv* env);
-int computeBytesPerPixel(uint32_t config);
-
-int locateColorTable(JNIEnv* env, jobject javaBitmap, jintArray colorTable = NULL);
-int locateColorTableRelateInfoFieldsBase(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, int offset, jintArray palette);
-int locateColorTableBelowAPI18(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray colorTable);
-int locateColorTableBelowAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray colorTable);
-int locateColorTableAboveAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray colorTable);
-
-ColorTable* getColorTable(JNIEnv* env, jobject javaBitmap);
-
-int locateBitmapInfoFieldsBaseBelowAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
-int locateBitmapInfoFieldsBaseAboveAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo);
+int computeBytesPerPixel(int32_t config);
 
 bool setupLibrary(JNIEnv* env) {
-    static int sInitFlag;
-
-    if (0 == sInitFlag) {
-        int apiLevel = getApiLevel(env);
-
-        LOGD("NativeBitmapHelper initialize started");
-        sInitFlag = -1;
-
-        jclass bitmap_class = env->FindClass("android/graphics/Bitmap");
-        if (NULL == bitmap_class) return false;
-        if (apiLevel < 21) {
-            gBitmap_nativeBitmapFieldID = env->GetFieldID(bitmap_class, "mNativeBitmap", "I");
-        } else {
-            gBitmap_nativeBitmapFieldID = env->GetFieldID(bitmap_class, "mNativeBitmap", "J");
-        }
-        if (NULL == gBitmap_nativeBitmapFieldID) return false;
-        gBitmap_widthFieldID = env->GetFieldID(bitmap_class, "mWidth", "I");
-        if (NULL == gBitmap_widthFieldID) return false;
-        gBitmap_heightFieldID = env->GetFieldID(bitmap_class, "mHeight", "I");
-        if (NULL == gBitmap_heightFieldID) return false;
-        gBitmap_isMutableMethodID = env->GetMethodID(bitmap_class, "isMutable", "()Z");
-        if (NULL == gBitmap_isMutableMethodID) return false;
-
-        sInitFlag = 1;  // Initialize success
-        LOGD("NativeBitmapHelper initialize finished");
-    } else if (-1 == sInitFlag) {
-        // Initialize failed, may be can't take some java fields or methods by reflection.
-        LOGD("NativeBitmapHelper initialize failed!");
-        return false;
+    LOGI("sizeof(void*)=%d", sizeof(void*));
+    gSkBitmapOperator = createSkBitmapOperator(env);
+    if (NULL != gSkBitmapOperator) {
+        return gSkBitmapOperator->setup(env);
     }
-    return true;
+    return false;
+}
+
+jboolean JNICALL Init(JNIEnv* env, jobject, jobject index8bitmap, jintArray colorTable) {
+    if (NULL != index8bitmap) {
+        return (jboolean) gSkBitmapOperator->detectMemoryLayout(env, index8bitmap, colorTable);
+    }
+    return JNI_FALSE;
+}
+
+jint JNICALL GetIndex8Config (JNIEnv* ) {
+    return (jint)gSkBitmapOperator->getIndex8ConfigValue();
 }
 
 jint JNICALL GetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
@@ -71,91 +41,103 @@ jint JNICALL GetBytesPerPixel(JNIEnv* env, jobject, jobject javaBitmap) {
     return 0;
 }
 
-jint JNICALL LocateColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray colorTable) {
-    return locateColorTable(env, javaBitmap, colorTable);
-}
-
-jint JNICALL GetColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray output) {
+jint JNICALL GetPalette(JNIEnv* env, jobject, jobject javaBitmap, jintArray output) {
     if (NULL != output) {
-        ColorTable* colorTable = getColorTable(env, javaBitmap);
+        uint16_t colorCount = 0;
+        PMColor* colorTable = gSkBitmapOperator->getPalette(env, javaBitmap, &colorCount);
         if (NULL != colorTable) {
             int count = env->GetArrayLength(output);
-            if (count >= colorTable->fCount) {
-                int* array = env->GetIntArrayElements(output, NULL);
+            int* array = env->GetIntArrayElements(output, NULL);
 
-                memset(array, 0, count * sizeof(jint));
-                memcpy(array, colorTable->fColors, colorTable->fCount * sizeof(PMColor));
+            memset(array, 0, count * sizeof(jint));
 
-                env->ReleaseIntArrayElements(output, array, 0);
-                return colorTable->fCount;
-            } else {
-                return 0;
-            }
+            count = count < colorCount ? count : colorCount;
+            memcpy(array, colorTable, count * sizeof(PMColor));
+
+            env->ReleaseIntArrayElements(output, array, 0);
+            return colorCount;
         }
     }
-    return -1;
+    return 0;
 }
 
-jint JNICALL ChangeColorTable(JNIEnv* env, jobject, jobject javaBitmap, jintArray palette) {
-    if (NULL != palette) {
-        ColorTable* colorTable = getColorTable(env, javaBitmap);
-        if (NULL != colorTable) {
-            int count = env->GetArrayLength(palette);
-            if (colorTable->fCount >= count) {
-                int* array = env->GetIntArrayElements(palette, NULL);
+jint JNICALL ChangePalette(JNIEnv* env, jobject, jobject javaBitmap, jintArray palette) {
+    if (NULL != javaBitmap && NULL != palette) {
+        int count = env->GetArrayLength(palette);
+        int* array = env->GetIntArrayElements(palette, NULL);
+        count = gSkBitmapOperator->setPalette(env, javaBitmap, (PMColor*)array,
+                                              (uint8_t) count);
+        env->ReleaseIntArrayElements(palette, array, JNI_ABORT);
 
-                for (int i = 0; i < count; ++i) {
-                    int color = array[i];
-                    int a = SkColorGetA(color);
-                    int r = SkColorGetR(color);
-                    int g = SkColorGetG(color);
-                    int b = SkColorGetB(color);
+        return count;
+    }
 
-                    float alphaFactor = a / 255.0f;
-                    colorTable->fColors[i] = PackABGR32(a, 
-                            int(b * alphaFactor), 
-                            int(g * alphaFactor),
-                            int(r * alphaFactor));
+    return 0;
+}
+
+jboolean JNICALL Index8FakeToAlpha8(JNIEnv* env, jobject, jobject javaBitmap, jboolean fake) {
+    if (!gSkBitmapOperator->hasColorTable(env, javaBitmap)) {
+        LOGW("Bitmap(%p) hasn't color table!", javaBitmap);
+        return JNI_FALSE;
+    }
+
+    if (getApiLevel(env) < 20) {
+        const uint8_t index8Config = gSkBitmapOperator->getIndex8ConfigValue();
+        if (index8Config > 0) {
+            const uint8_t alpha8Config = (const uint8_t) (index8Config - 1);
+            const int config = gSkBitmapOperator->getConfig(env, javaBitmap);
+            if (fake) {
+                // INDEX8 fake to ALPHA8
+                if (index8Config == config) {
+                    gSkBitmapOperator->setConfig(env, javaBitmap,
+                                                 (uint8_t) (index8Config - 1));
+                    return JNI_TRUE;
+                } else {
+                    LOGW("Bitmap(%p) is not INDEX8 color format!", javaBitmap);
+                    return JNI_FALSE;
                 }
-
-                env->ReleaseIntArrayElements(palette, array, JNI_ABORT);
-                return count;
             } else {
-                return 0;
+                // restore to INDEX8
+                if (alpha8Config == config) {
+                    gSkBitmapOperator->setConfig(env, javaBitmap, index8Config);
+                } else {
+                    LOGW("Bitmap(%p) is not a faked ALPHA8 format bitmap!", javaBitmap);
+                    return JNI_FALSE;
+                }
+            }
+        }
+    } else if (getApiLevel(env) > 20) {
+        int colorType = gSkBitmapOperator->getColorType(env, javaBitmap);
+        if (fake) {
+            // INDEX8 fake to ALPHA8
+            if (kIndex_8_SkColorType == colorType) {
+                gSkBitmapOperator->setColorType(env, javaBitmap, kAlpha_8_SkColorType);
+            } else {
+                LOGW("Bitmap(%p) is not INDEX8 color format!", javaBitmap);
+                return JNI_FALSE;
+            }
+        } else {
+            // restore to INDEX8
+            if (kAlpha_8_SkColorType == colorType) {
+                gSkBitmapOperator->setColorType(env, javaBitmap, kIndex_8_SkColorType);
+            } else {
+                LOGW("Bitmap(%p) is not a faked ALPHA8 format bitmap!", javaBitmap);
+                return JNI_FALSE;
             }
         }
     }
-
-    return -1;
+    return JNI_FALSE;
 }
 
-int getApiLevel(JNIEnv* env) {
-    static int sApiLevel = 0;
-
-    while (NULL != env && 0 == sApiLevel) {
-        sApiLevel = -1;
-
-        jclass versionClass = env->FindClass("android/os/Build$VERSION");
-        if (NULL == versionClass) {
-            LOGD("Can't find Build.VERSION");
-            break;
-        }
-
-        jfieldID sdkIntFieldID = env->GetStaticFieldID(versionClass, "SDK_INT", "I");
-        if (NULL == sdkIntFieldID) {
-            LOGD("Can't find Build.VERSION.SDK_INT");
-            break;
-        }
-
-        sApiLevel = env->GetStaticIntField(versionClass, sdkIntFieldID);
-        LOGD("SDK_INT = %d", sApiLevel);
-        break;
-    }
-
-    return sApiLevel;
+jint JNICALL GetConfig(JNIEnv* env, jobject, jobject javaBitmap) {
+    return gSkBitmapOperator->getConfig(env, javaBitmap);
 }
 
-int computeBytesPerPixel(uint32_t config) {
+jint JNICALL SetConfig(JNIEnv* env, jobject, jobject javaBitmap, jint config) {
+    return gSkBitmapOperator->setConfig(env, javaBitmap, (uint8_t) config);
+}
+
+int computeBytesPerPixel(int32_t config) {
     int bpp;
     switch (config) {
         case ANDROID_BITMAP_FORMAT_NONE:
@@ -178,118 +160,3 @@ int computeBytesPerPixel(uint32_t config) {
     return bpp;
 }
 
-int locateColorTable(JNIEnv* env, jobject javaBitmap, jintArray colorTable) {
-    static int sColorTableOffset = 0;
-
-    if (NULL != javaBitmap && NULL != colorTable && 0 == sColorTableOffset) {
-        int bitmap = env->GetIntField(javaBitmap, gBitmap_nativeBitmapFieldID);
-        AndroidBitmapInfo bmpInfo;
-        AndroidBitmap_getInfo(env, javaBitmap, &bmpInfo);
-
-        int apiLevel = getApiLevel(env);
-
-        if (apiLevel < 18) {
-            sColorTableOffset = locateColorTableBelowAPI18(env, (void*)bitmap, bmpInfo, colorTable);
-        } else if (apiLevel < 21) {
-            sColorTableOffset = locateColorTableBelowAPI21(env, (void*)bitmap, bmpInfo, colorTable);
-        } else {
-            sColorTableOffset = locateColorTableAboveAPI21(env, (void*)bitmap, bmpInfo, colorTable);
-        }
-    }
-
-    return sColorTableOffset;
-}
-
-ColorTable* getColorTable(JNIEnv* env, jobject javaBitmap) {
-    if (NULL != javaBitmap) {
-        int offset = locateColorTable(env, javaBitmap);
-        if (offset > 0) {
-            int32_t* bitmap = (int32_t*)env->GetIntField(javaBitmap, gBitmap_nativeBitmapFieldID);
-            return (ColorTable*)bitmap[offset];
-        }
-    }
-    return NULL;
-}
-
-int locateColorTableBelowAPI18(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray palette) {
-    return locateColorTableRelateInfoFieldsBase(env, bitmap, bmpInfo, -2, palette);
-}
-
-int locateColorTableBelowAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray palette) {
-    return locateColorTableRelateInfoFieldsBase(env, bitmap, bmpInfo, -1, palette);
-}
-
-int locateColorTableAboveAPI21(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, jintArray palette) {
-    return locateColorTableRelateInfoFieldsBase(env, bitmap, bmpInfo, -3, palette);
-}
-
-int locateColorTableRelateInfoFieldsBase(JNIEnv* env, void* bitmap, const AndroidBitmapInfo& bmpInfo, int offset, jintArray palette) {
-    int result = 0;
-    int infoFieldsBase = 0;
-    if (getApiLevel(env) < 21) {
-        infoFieldsBase = locateBitmapInfoFieldsBaseBelowAPI20(bitmap, bmpInfo);
-    } else {
-        infoFieldsBase = locateBitmapInfoFieldsBaseAboveAPI20(bitmap, bmpInfo);
-    }
-
-    if (infoFieldsBase > 2) {
-        uint32_t* ptr = (uint32_t*)bitmap;
-        result = infoFieldsBase + offset;
-        ColorTable* colorTable = (ColorTable*)ptr[result];
-        if (NULL != colorTable) {
-            if (NULL != palette) {
-                int count = env->GetArrayLength(palette);
-                int* array = env->GetIntArrayElements(palette, NULL);
-                LOGD("result = %d, colorTable count = %d, palette count = %d", result, colorTable->fCount, count);
-                if (colorTable->fCount == count && memcmp(array, colorTable->fColors, count * sizeof(PMColor)) == 0) {
-                    env->ReleaseIntArrayElements(palette, array, 0);
-                    LOGD("Locate color table offset = %d", result);
-                    return result;
-                }
-                env->ReleaseIntArrayElements(palette, array, 0);
-            } else if (NULL != colorTable->fColors && colorTable->fCount <= 256) {
-                LOGD("Guess offset of color table = %d", result);
-                return result;
-            }
-        }
-    }
-    LOGD("Color table offset locate failed!");
-    return -1;
-}
-
-
-int locateBitmapInfoFieldsBaseBelowAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo) {
-    uint32_t* ptr = (uint32_t*)bitmap;
-
-    if (NULL != ptr && 0 == gBmpInfoFieldsBase) {
-        for (int i = 0; i < TRAVERSAL_TIMES; ++i) {
-            // Assuming the rowBytes/width/height of SkBitmap are continuous in memory model
-            if (ptr[i] == bmpInfo.stride && ptr[i + 1] == bmpInfo.width && ptr[i + 2] == bmpInfo.height) {
-                gBmpInfoFieldsBase = i;
-                LOGD("traversal for field offset success(offset=%d)", i);
-                return gBmpInfoFieldsBase;
-            }
-        }
-        gBmpInfoFieldsBase = -1;
-        LOGD("traversal for field offset failed!");
-    }
-    return gBmpInfoFieldsBase;
-}
-
-int locateBitmapInfoFieldsBaseAboveAPI20(void* bitmap, const AndroidBitmapInfo& bmpInfo) {
-    uint32_t* ptr = (uint32_t*)bitmap;
-
-    if (NULL != ptr && 0 == gBmpInfoFieldsBase) {
-        for (int i = 0; i < TRAVERSAL_TIMES; ++i) {
-            // Assuming the rowBytes/width/height of SkBitmap are continuous in memory model
-            if (ptr[i] == bmpInfo.width && ptr[i + 1] == bmpInfo.height && ptr[i + 4] == bmpInfo.stride) {
-                gBmpInfoFieldsBase = i;
-                LOGD("traversal for field offset success(offset=%d)", i);
-                return gBmpInfoFieldsBase;
-            }
-        }
-        gBmpInfoFieldsBase = -1;
-        LOGD("traversal for field offset failed!");
-    }
-    return gBmpInfoFieldsBase;
-}

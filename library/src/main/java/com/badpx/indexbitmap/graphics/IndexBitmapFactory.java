@@ -1,4 +1,4 @@
-package com.badpx.indexbitmap;
+package com.badpx.indexbitmap.graphics;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -15,34 +15,33 @@ import java.util.Arrays;
 public class IndexBitmapFactory {
     private final static String TAG = "IndexBitmapFactory";
     private static final int IN_PLACE_FLAG_BASE = 28;
-    private static final int IN_PLACE_FLAG_BASE_ABOVE_KITKAT = 32;
+    private static final int IN_PLACE_FLAG_BASE_ABOVE_KITKAT = 32;  // Add write alpha type to parcel
 
-    private static int NATIVE_INDEX_CONFIG = 1;
+    private static int NATIVE_INDEX_CONFIG;
 
     static {
-        NATIVE_INDEX_CONFIG = testNativeIndexConfigEnum();
+        testNativeIndexConfigEnum();
     }
 
     // Decide the value of native index bitmap config.
-    private static int testNativeIndexConfigEnum() {
-        int nativeConfig = 2;   // For Android 4.4.3 and above
-        if (Build.VERSION.SDK_INT > 20) { // For Android 5.0 and above
-            // Since Android 5.0 the SkBitmap::Config was deprecated.
-            return nativeConfig;
+    private static void testNativeIndexConfigEnum() {
+        // Since Android 5.0 the SkBitmap::Config was deprecated.
+        if (Build.VERSION.SDK_INT < 20) {
+            NATIVE_INDEX_CONFIG = 2;   // For Android 4.4.3 and above
+            Parcel parcel = createIndexBitmapParcel(new byte[1], new int[1], 0, 0, 1, 1, false);
+            try {
+                Bitmap.CREATOR.createFromParcel(parcel).recycle();
+            } catch (Exception e) {
+                Log.d(TAG, "Android version <= 4.4.2");
+                NATIVE_INDEX_CONFIG = 3;   // For Android 4.4.2 and below
+            } finally {
+                parcel.recycle();
+            }
         }
+    }
 
-        Parcel parcel = createIndexBitmapParcel(new byte[1], null, 0, 0, 1, 1, false);
-
-        try {
-            Bitmap.CREATOR.createFromParcel(parcel).recycle();
-        } catch (Exception e) {
-            Log.d(TAG, "System version <= 4.4.2");
-            nativeConfig = 3;   // For Android 4.4.2 and below
-        } finally {
-            parcel.recycle();
-        }
-
-        return nativeConfig;
+    public static Bitmap createBitmap(byte[] pixels, Palette palette, int width, int height) {
+        return createBitmap(pixels, palette.getColorTable(), 0, 0, width, height);
     }
 
     /**
@@ -52,6 +51,7 @@ public class IndexBitmapFactory {
      *                   where the bitmap bytes are interpreted as indices into the colorTable.
      * @param width The width of the bitmap.
      * @param height The height of the bitmap.
+     * @return Return a Bitmap instance or null
      */
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int width, int height) {
         return createBitmap(pixels, colorTable, 0, 0, width, height);
@@ -63,13 +63,19 @@ public class IndexBitmapFactory {
      * @param colorTable Array of Colors (non-premultiplied 32-bit ARGB colors) used by 8-bit bitmaps,
      *                   where the bitmap bytes are interpreted as indices into the colorTable.
      * @param offset Number of values to skip before the first pixel in the array of pixels.
-     * @param stride Number of pixels in the array between rows (must be >= width).
+     * @param stride Number of pixels in the array between rows (must be &gt;= width).
      * @param width The width of the bitmap.
      * @param height The height of the bitmap.
+     * @return Return a Bitmap instance or null
      */
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride,
                                       int width, int height) {
-        return createBitmap(pixels, colorTable, offset, stride, width, height, false);
+        return createBitmap(pixels, colorTable, offset, stride, width, height, true);
+    }
+
+    public static Bitmap createBitmap(byte[] pixels, Palette palette, int offset, int stride,
+                                      int width, int height, boolean mutable) {
+        return createBitmap(pixels, palette.getColorTable(), offset, stride, width, height, mutable);
     }
 
     /**
@@ -78,10 +84,11 @@ public class IndexBitmapFactory {
      * @param colorTable Array of Colors (non-premultiplied 32-bit ARGB colors) used by 8-bit bitmaps,
      *                   where the bitmap bytes are interpreted as indices into the colorTable.
      * @param offset Number of values to skip before the first pixel in the array of pixels.
-     * @param stride Number of pixels in the array between rows (must be >= width).
+     * @param stride Number of pixels in the array between rows (must be &gt;= width).
      * @param width The width of the bitmap.
      * @param height The height of the bitmap.
      * @param mutable True if the resulting bitmap should be mutable (i.e. its pixels can be modified)
+     * @return Return a Bitmap instance or null
      */
     public static Bitmap createBitmap(byte[] pixels, int[] colorTable, int offset, int stride,
                                       int width, int height, boolean mutable) {
@@ -116,8 +123,9 @@ public class IndexBitmapFactory {
             parcel.writeInt(6); // SkColorType
             parcel.writeInt(2); // kPremul_SkAlphaType
             inPlaceFlagBase = IN_PLACE_FLAG_BASE_ABOVE_KITKAT;
-        } else {
-            parcel.writeInt(NATIVE_INDEX_CONFIG); // Value of SkBitmap::Config::kIndex8_Config
+        } else if (Build.VERSION.SDK_INT < 20) {
+            // Value of SkBitmap::Config::kIndex8_Config
+            parcel.writeInt(NATIVE_INDEX_CONFIG);
         }
         parcel.writeInt(width);    // width
         parcel.writeInt(height);   // height

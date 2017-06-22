@@ -36,8 +36,39 @@
 #define		UNLIKELY(x)					(x)
 #endif
 
+// Android API Level list:
+#define _M_   23
+#define _LOLLIPOP_MR1_    22
+#define _LOLLIPOP_    21
+#define _KITKAT_WATCH_    20
+#define _KITKAT_  19
+#define _JELLY_BEAN_MR2_  18
+#define _JELLY_BEAN_MR1_  17
+#define _JELLY_BEAN_  16
+#define _ICE_CREAM_SANDWICH_MR1_  15
+#define _ICE_CREAM_SANDWICH_  14
+#define _HONEYCOMB_MR2_   13
+#define _HONEYCOMB_MR1_   12
+#define _HONEYCOMB_   11
+#define _GINGERBREAD_MR1_ 10
+#define _GINGERBREAD_ 9
+#define _FROYO_   8
+#define _ECLAIR_MR1_  7
+#define _ECLAIR_0_1_  6
+#define _ECLAIR_  5
+#define _DONUT_   4
+#define _CUPCAKE_ 3
+#define _BASE_1_1_    2
+#define _BASE_    1
+
 void setVM(JavaVM *);
 JavaVM *getVM();
 JNIEnv *getEnv();
+int getApiLevel(JNIEnv* env);
+
+#define BAD_READ_PTR     (-1)
+#define UNKNOWN_READ_PTR (0)
+#define GOOD_READ_PTR    (1)
+int checkBadReadPtr(void* ptr, size_t size);
 
 #endif

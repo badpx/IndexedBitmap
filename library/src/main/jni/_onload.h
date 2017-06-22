@@ -1,6 +1,7 @@
 #ifndef ONLOAD_H_
 #define ONLOAD_H_
 
+static const char *const PACKAGE_NAME = "com/badpx/indexbitmap/graphics/BitmapHelper";
 #pragma interface
 
 #include <jni.h>
