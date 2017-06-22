@@ -30,7 +30,6 @@ public class IndexPaint extends Paint {
 
     @Override
     public void setColor(int color) {
-        // TODO: find closet color from color table
         super.setAlpha(color & 0xFF);
     }
 

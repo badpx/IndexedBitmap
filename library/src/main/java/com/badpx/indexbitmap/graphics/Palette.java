@@ -1,5 +1,7 @@
 package com.badpx.indexbitmap.graphics;
 
+import android.graphics.Color;
+
 import java.util.Arrays;
 
 /**
@@ -47,8 +49,32 @@ public class Palette {
         }
     }
 
-    public int findColorIndex(int color) {
-        return 0;
+    public int[] lookupColorIndex(int...colors) {
+        int len = colors.length;
+        int[] results = new int[len];
+        for (int n = 0; n < len; ++n) {
+            float minDistance = 255;
+            int color = colors[n];
+            int r = Color.red(color);
+            int g = Color.green(color);
+            int b = Color.blue(color);
+            int a = Color.alpha(color);
+
+            for (int i = 0; i < INDEX8_COLOR_TOTAL; ++i) {
+                int c = mColorTable[i];
+                float dis = Math.abs(r - Color.red(c))
+                        + Math.abs(g - Color.green(c))
+                        + Math.abs(b - Color.blue(c))
+                        + Math.abs(a - Color.alpha(c));
+                dis /= 4;
+                if (dis < minDistance) {
+                    results[n] = i;
+                    if (0 == dis) break;
+                    minDistance = dis;
+                }
+            }
+        }
+        return results;
     }
 
     int[] getColorTable() {
